@@ -1,0 +1,12 @@
+[
+    {
+        "browser": "chromium",
+        "type": "desktop",
+        "path": "screenshots/chromium-desktop.png"
+    },
+    {
+        "browser": "firefox",
+        "type": "desktop",
+        "path": "screenshots/firefox-desktop.png"
+    }
+]
