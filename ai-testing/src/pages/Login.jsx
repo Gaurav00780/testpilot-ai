@@ -2,7 +2,11 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../utils/api';
 import useAppStore from '../store/useAppStore';
-import { Spinner } from '../components/ui/Spinner';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
+import { Loader2 } from 'lucide-react';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -10,11 +14,10 @@ export default function Login() {
 
   const [email, setEmail]     = useState('');
   const [name, setName]       = useState('');
-  const [mode, setMode]       = useState('login'); // 'login' | 'register'
+  const [mode, setMode]       = useState('login');
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState('');
 
-  /** Create a local session without a backend */
   const loginLocally = (emailVal, nameVal) => {
     const user = { email: emailVal, name: nameVal || emailVal.split('@')[0] };
     localStorage.setItem('token', 'dev-bypass-token');
@@ -36,7 +39,6 @@ export default function Login() {
       setUser(user || { email, name });
       navigate('/dashboard');
     } catch {
-      // Backend unavailable — fall back to local session
       loginLocally(email, name);
     } finally {
       setLoading(false);
@@ -44,101 +46,99 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-paper flex items-center justify-center px-4">
+    <div className="min-h-screen bg-background flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
-        {/* Logo */}
         <div className="text-center mb-8">
-          <h1 className="font-serif text-4xl text-ink">
-            <span className="text-accent italic">Test</span>Pilot AI
+          <h1 className="text-4xl font-bold tracking-tight text-foreground">
+            <span className="text-primary">Test</span>Pilot AI
           </h1>
-          <p className="text-muted text-sm mt-2">Cross-browser visual testing platform</p>
+          <p className="text-muted-foreground text-sm mt-2">Cross-browser visual testing platform</p>
         </div>
 
-        {/* Card */}
-        <div className="tp-card p-8 shadow-sm">
-          <h2 className="font-serif text-xl text-ink mb-6">
-            {mode === 'login' ? 'Sign in to your account' : 'Create an account'}
-          </h2>
-
-          <div className="space-y-4">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-xl font-semibold tracking-tight">
+              {mode === 'login' ? 'Sign in to your account' : 'Create an account'}
+            </CardTitle>
+            <CardDescription>
+              {mode === 'login' ? 'Enter your email to sign in' : 'Enter your details to get started'}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
             {mode === 'register' && (
-              <div>
-                <label className="block text-xs font-semibold text-muted mb-1.5 uppercase tracking-wide" htmlFor="name-input">
-                  Name
-                </label>
-                <input
+              <div className="space-y-2">
+                <Label htmlFor="name-input">Name</Label>
+                <Input
                   id="name-input"
                   type="text"
                   value={name}
                   onChange={(e) => { setName(e.target.value); setError(''); }}
-                  placeholder="Jane Smith"
-                  className="w-full px-3 py-2.5 border border-border rounded text-sm text-ink placeholder-muted bg-paper outline-none focus:border-accent transition-colors"
+                  placeholder="Your name"
                 />
               </div>
             )}
 
-            <div>
-              <label className="block text-xs font-semibold text-muted mb-1.5 uppercase tracking-wide" htmlFor="email-input">
-                Email
-              </label>
-              <input
+            <div className="space-y-2">
+              <Label htmlFor="email-input">Email</Label>
+              <Input
                 id="email-input"
                 type="email"
                 value={email}
                 onChange={(e) => { setEmail(e.target.value); setError(''); }}
                 placeholder="you@company.com"
-                className="w-full px-3 py-2.5 border border-border rounded text-sm text-ink placeholder-muted bg-paper outline-none focus:border-accent transition-colors"
                 onKeyDown={(e) => e.key === 'Enter' && handleAction(mode)}
               />
             </div>
 
             {error && (
-              <div className="text-xs text-red bg-[#ffe8e5] rounded px-3 py-2">{error}</div>
+              <div className="text-xs text-destructive bg-destructive/10 rounded px-3 py-2">{error}</div>
             )}
 
             {mode === 'login' ? (
               <>
-                <button
+                <Button
                   id="signin-button"
                   onClick={() => handleAction('login')}
                   disabled={loading}
-                  className="w-full bg-accent text-white py-2.5 rounded font-semibold text-sm hover:bg-opacity-90 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="w-full"
                 >
-                  {loading && <Spinner size="sm" />}
+                  {loading && <Loader2 className="w-4 h-4 animate-spin" />}
                   Sign in
-                </button>
-                <button
+                </Button>
+                <Button
                   id="show-register-button"
+                  variant="outline"
                   onClick={() => { setMode('register'); setError(''); }}
-                  className="w-full border border-border text-ink py-2.5 rounded text-sm hover:bg-tag-bg transition-colors"
+                  className="w-full"
                 >
                   Create account
-                </button>
+                </Button>
               </>
             ) : (
               <>
-                <button
+                <Button
                   id="register-button"
                   onClick={() => handleAction('register')}
                   disabled={loading}
-                  className="w-full bg-accent text-white py-2.5 rounded font-semibold text-sm hover:bg-opacity-90 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="w-full"
                 >
-                  {loading && <Spinner size="sm" />}
+                  {loading && <Loader2 className="w-4 h-4 animate-spin" />}
                   Create account
-                </button>
-                <button
+                </Button>
+                <Button
                   id="back-to-login-button"
+                  variant="outline"
                   onClick={() => { setMode('login'); setError(''); }}
-                  className="w-full border border-border text-ink py-2.5 rounded text-sm hover:bg-tag-bg transition-colors"
+                  className="w-full"
                 >
                   Back to sign in
-                </button>
+                </Button>
               </>
             )}
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
-        <p className="text-center text-xs text-muted mt-6">
+        <p className="text-center text-xs text-muted-foreground mt-6">
           No password needed — email-only authentication
         </p>
       </div>

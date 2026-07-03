@@ -43,7 +43,7 @@ export function formatDate(date) {
  */
 export function formatMismatch(pct) {
   if (pct === null || pct === undefined) return '—';
-  return (pct * 100).toFixed(2) + '%';
+  return pct.toFixed(2) + '%';
 }
 
 /**

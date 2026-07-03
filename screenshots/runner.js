@@ -1,100 +1,38 @@
 const { chromium, firefox, webkit, devices } = require('playwright');
-const fs = require('fs');
 const path = require('path');
+const fs = require('fs');
 
-const SCREENSHOT_DIR = path.join(__dirname, 'screenshots');
-
-// Ensure screenshots folder exists
-if (!fs.existsSync(SCREENSHOT_DIR)) {
-    fs.mkdirSync(SCREENSHOT_DIR);
-}
-
-// Main function
-async function runTest(url) {
-    const browsers = {
-        chromium,
-        firefox,
-        webkit
-    };
-
-    console.log(`🚀 Testing URL: ${url}\n`);
-
-    for (const name in browsers) {
-        const browserType = browsers[name];
-        const browser = await browserType.launch();
-
-        const context = await browser.newContext({
-            viewport: { width: 1280, height: 800 }
-        });
-
-        const page = await context.newPage();
-
-        // 📱 Mobile test (iPhone 13)
-        const iPhone = devices['iPhone 13'];
-
-        const mobileOptions = { ...iPhone };
-        if (name === 'firefox') {
-            delete mobileOptions.isMobile;
-        }
-
-        const mobileContext = await browser.newContext(mobileOptions);
-
-        const mobilePage = await mobileContext.newPage();
-        const mobilePath = path.join(SCREENSHOT_DIR, `${name}-mobile.png`);
-
-        try {
-            console.log(`📱 Running mobile on ${name}...`);
-            await mobilePage.goto(url, { waitUntil: 'networkidle', timeout: 60000 });
-            await mobilePage.screenshot({
-                path: mobilePath,
-                fullPage: true
-            });
-            console.log(`📱 Mobile screenshot saved: ${mobilePath}`);
-        } catch (err) {
-            console.log(`❌ Error on mobile ${name}:`, err.message);
-        }
-
-        page.on('console', msg => {
-            console.log(`[${name} console]:`, msg.text());
-        });
-
-        page.on('pageerror', err => {
-            console.log(`[${name} error]:`, err.message);
-        });
-
-        await page.waitForTimeout(2000);
-
-
-        try {
-            console.log(`🌐 Running on ${name}...`);
-
-            await page.goto(url, { waitUntil: 'networkidle', timeout: 60000 });
-
-            const filePath = path.join(SCREENSHOT_DIR, `${name}.png`);
-
-            await page.screenshot({
-                path: filePath,
-                fullPage: true
-            });
-
-            console.log(`✅ Screenshot saved: ${filePath}`);
-        } catch (err) {
-            console.log(`❌ Error on ${name}:`, err.message);
-        }
-
-        await browser.close();
-    }
-
-    console.log('\n🎉 Testing completed!');
-}
-
-// Run from terminal
 const url = process.argv[2];
+const browserList = process.argv[3] ? process.argv[3].split(',') : ['chromium'];
+const runId = process.argv[4] || 'latest';
+const OUTPUT_DIR = path.join(__dirname);
 
-if (!url) {
-    console.log('❗ Please provide a URL');
-    console.log('Example: node runner.js https://example.com');
-    process.exit(1);
-}
+if (!url) { console.error('Usage: node runner.js <url> [browser1,browser2,...] [runId]'); process.exit(1); }
 
-runTest(url);
+const launchers = { chromium, firefox, webkit, 'mobile-chrome': chromium };
+
+(async () => {
+  for (const browserType of browserList) {
+    const launcher = launchers[browserType.toLowerCase()];
+    if (!launcher) { console.warn(`Unknown browser: ${browserType}`); continue; }
+    const isMobile = browserType.toLowerCase() === 'mobile-chrome';
+    console.log(isMobile ? `Running mobile on ${browserType}` : `Running on ${browserType}`);
+    
+    const browser = await launcher.launch({ headless: true });
+    try {
+      const contextOptions = isMobile 
+        ? { ...devices['Pixel 5'] } 
+        : { viewport: { width: 1280, height: 720 } };
+        
+      const context = await browser.newContext(contextOptions);
+      const page = await context.newPage();
+      await page.goto(url, { waitUntil: 'networkidle', timeout: 30000 });
+      const outputPath = path.join(OUTPUT_DIR, `${runId}_${browserType.toLowerCase()}.png`);
+      await page.screenshot({ path: outputPath, fullPage: true });
+      console.log(`Screenshot saved: ${runId}_${browserType.toLowerCase()}.png`);
+    } finally {
+      await browser.close();
+    }
+  }
+  console.log('All screenshots complete');
+})().catch(err => { console.error('Runner error:', err); process.exit(1); });

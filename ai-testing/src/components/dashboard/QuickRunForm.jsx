@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCreateRun } from '../../hooks/useCreateRun';
-import { Spinner } from '../ui/Spinner';
 import { getBrowserConfig } from '../../utils/browserIcons';
 import useAppStore from '../../store/useAppStore';
-import { Play, ChevronDown } from 'lucide-react';
+import { Button } from '../ui/button';
+import { Input } from '../ui/input';
+import { Play, Loader2 } from 'lucide-react';
 
 const BROWSERS = ['chromium', 'firefox', 'webkit', 'mobile-chrome'];
 
@@ -49,48 +50,45 @@ export function QuickRunForm() {
   return (
     <div className="space-y-4">
       <div className="flex gap-3">
-        <input
+        <Input
           type="url"
           value={url}
           onChange={(e) => { setUrl(e.target.value); setError(''); }}
           placeholder="https://example.com"
-          className="flex-1 text-sm px-4 py-2.5 border border-border rounded-lg bg-white text-ink placeholder-gray-400 outline-none focus:border-accent transition-colors shadow-sm"
+          className="flex-1"
         />
-        <button
+        <Button
           onClick={handleSubmit}
           disabled={isPending}
-          className="bg-accent text-white text-sm px-6 py-2.5 rounded-lg font-bold hover:bg-orange-600 transition-colors disabled:opacity-50 flex items-center gap-2 shrink-0 shadow-sm"
+          className="gap-2 shrink-0"
         >
-          {isPending ? <Spinner size="sm" /> : <Play className="w-4 h-4 fill-current" />}
+          {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4 fill-current" />}
           Run Now
-        </button>
+        </Button>
       </div>
 
-      {/* Browser toggles */}
       <div className="flex flex-wrap gap-2">
         {BROWSERS.map((b) => {
           const cfg = getBrowserConfig(b);
           const { Icon } = cfg;
           const active = browsers.includes(b);
           return (
-            <button
+            <Button
               key={b}
+              type="button"
+              variant={active ? 'default' : 'outline'}
+              size="sm"
               onClick={() => toggleBrowser(b)}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-colors`}
-              style={active ? { borderColor: cfg.color, color: cfg.color, backgroundColor: cfg.bgColor } : { borderColor: '#E5E7EB', color: '#6B7280', backgroundColor: '#FFFFFF' }}
+              className="gap-2"
             >
               <Icon size={14} />
               {cfg.label}
-            </button>
+            </Button>
           );
         })}
       </div>
 
-      <button className="flex items-center gap-1 text-xs font-semibold text-ink mt-2">
-        Advanced Options <ChevronDown className="w-3 h-3" />
-      </button>
-
-      {error && <p className="text-xs text-red font-medium">{error}</p>}
+      {error && <p className="text-xs text-destructive font-medium">{error}</p>}
     </div>
   );
 }

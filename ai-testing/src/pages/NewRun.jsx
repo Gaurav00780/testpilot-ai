@@ -1,21 +1,28 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCreateRun } from '../hooks/useCreateRun';
-import { Spinner } from '../components/ui/Spinner';
 import { getBrowserConfig } from '../utils/browserIcons';
 import useAppStore from '../store/useAppStore';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import { Switch } from '../components/ui/switch';
+import { Card, CardContent } from '../components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
+import { Separator } from '../components/ui/separator';
+import { Loader2, ChevronRight } from 'lucide-react';
 
 const BROWSERS = ['chromium', 'firefox', 'webkit', 'mobile-chrome'];
 const VIEWPORTS = [
-  { label: 'Desktop 1440px',  value: { width: 1440, height: 900 } },
-  { label: 'Laptop 1280px',   value: { width: 1280, height: 800 } },
-  { label: 'Tablet 768px',    value: { width: 768,  height: 1024 } },
-  { label: 'Mobile 390px',    value: { width: 390,  height: 844 } },
+  { label: 'Desktop 1440px', value: { width: 1440, height: 900 } },
+  { label: 'Laptop 1280px', value: { width: 1280, height: 800 } },
+  { label: 'Tablet 768px', value: { width: 768, height: 1024 } },
+  { label: 'Mobile 390px', value: { width: 390, height: 844 } },
 ];
 const WAIT_STRATEGIES = [
-  { label: 'Network Idle',         value: 'networkidle' },
-  { label: 'DOM Content Loaded',   value: 'domcontentloaded' },
-  { label: 'Delay 2s',             value: 'delay:2000' },
+  { label: 'Network Idle', value: 'networkidle' },
+  { label: 'DOM Content Loaded', value: 'domcontentloaded' },
+  { label: 'Delay 2s', value: 'delay:2000' },
 ];
 
 export default function NewRun() {
@@ -23,16 +30,16 @@ export default function NewRun() {
   const { setActiveRunId } = useAppStore();
   const { mutateAsync: createRun, isPending } = useCreateRun();
 
-  const [url, setUrl]               = useState('');
-  const [browsers, setBrowsers]     = useState(['chromium', 'firefox', 'webkit', 'mobile-chrome']);
-  const [viewport, setViewport]     = useState(VIEWPORTS[0].value);
-  const [waitStrategy, setWait]     = useState('networkidle');
-  const [threshold, setThreshold]   = useState(0.1);
+  const [url, setUrl] = useState('');
+  const [browsers, setBrowsers] = useState(['chromium', 'firefox', 'webkit', 'mobile-chrome']);
+  const [viewport, setViewport] = useState(VIEWPORTS[0].value);
+  const [waitStrategy, setWait] = useState('networkidle');
+  const [threshold, setThreshold] = useState(0.1);
   const [aiAnalysis, setAiAnalysis] = useState(true);
-  const [advanced, setAdvanced]     = useState(false);
+  const [advanced, setAdvanced] = useState(false);
   const [ignoreRects, setIgnoreRects] = useState('[]');
-  const [cookies, setCookies]         = useState('[]');
-  const [errors, setErrors]           = useState({});
+  const [cookies, setCookies] = useState('[]');
+  const [errors, setErrors] = useState({});
 
   const toggleBrowser = (b) => {
     setBrowsers((prev) =>
@@ -64,7 +71,7 @@ export default function NewRun() {
         threshold,
         aiAnalysis,
         ignoreRects: JSON.parse(ignoreRects),
-        cookies:     JSON.parse(cookies),
+        cookies: JSON.parse(cookies),
       });
       setActiveRunId(run.id);
       navigate(`/runs/${run.id}`);
@@ -76,200 +83,179 @@ export default function NewRun() {
   return (
     <div className="max-w-xl mx-auto px-6 py-10">
       <div className="mb-8">
-        <h1 className="font-serif text-3xl text-ink mb-1">New Test Run</h1>
-        <p className="text-sm text-muted">Configure and launch a cross-browser visual test</p>
+        <h1 className="text-3xl font-semibold tracking-tight text-foreground mb-1">New Test Run</h1>
+        <p className="text-sm text-muted-foreground">Configure and launch a cross-browser visual test</p>
       </div>
 
-      <div className="tp-card p-6 space-y-6">
-        {/* URL */}
-        <div>
-          <label className="block text-xs font-semibold text-muted mb-2 uppercase tracking-wide" htmlFor="url-input">
-            URL to Test *
-          </label>
-          <input
-            id="url-input"
-            type="url"
-            value={url}
-            onChange={(e) => { setUrl(e.target.value); setErrors((p) => ({ ...p, url: '' })); }}
-            placeholder="https://example.com"
-            className={`w-full px-3 py-2.5 border rounded text-sm text-ink placeholder-muted bg-paper outline-none focus:border-accent transition-colors ${
-              errors.url ? 'border-red' : 'border-border'
-            }`}
-          />
-          {errors.url && <p className="text-xs text-red mt-1">{errors.url}</p>}
-        </div>
-
-        {/* Browser Selection */}
-        <div>
-          <label className="block text-xs font-semibold text-muted mb-2 uppercase tracking-wide">
-            Browsers
-          </label>
-          <div className="flex flex-wrap gap-2">
-            {BROWSERS.map((b) => {
-              const cfg = getBrowserConfig(b);
-              const { Icon } = cfg;
-              const active = browsers.includes(b);
-              return (
-                <button
-                  key={b}
-                  id={`browser-${b}`}
-                  onClick={() => toggleBrowser(b)}
-                  className={`flex items-center gap-2 px-3 py-2 rounded border text-sm font-medium transition-colors ${
-                    active
-                      ? 'border-accent text-accent bg-[#fff0ec]'
-                      : 'border-border text-muted hover:border-ink hover:text-ink'
-                  }`}
-                >
-                  <Icon size={14} />
-                  {cfg.label}
-                </button>
-              );
-            })}
-          </div>
-          {errors.browsers && <p className="text-xs text-red mt-1">{errors.browsers}</p>}
-        </div>
-
-        {/* Viewport */}
-        <div>
-          <label className="block text-xs font-semibold text-muted mb-2 uppercase tracking-wide" htmlFor="viewport-select">
-            Viewport
-          </label>
-          <select
-            id="viewport-select"
-            onChange={(e) => setViewport(JSON.parse(e.target.value))}
-            className="w-full px-3 py-2.5 border border-border rounded text-sm text-ink bg-paper outline-none focus:border-accent transition-colors"
-          >
-            {VIEWPORTS.map((v) => (
-              <option key={v.label} value={JSON.stringify(v.value)}>{v.label}</option>
-            ))}
-          </select>
-        </div>
-
-        {/* Wait Strategy */}
-        <div>
-          <label className="block text-xs font-semibold text-muted mb-2 uppercase tracking-wide" htmlFor="wait-select">
-            Wait Strategy
-          </label>
-          <select
-            id="wait-select"
-            value={waitStrategy}
-            onChange={(e) => setWait(e.target.value)}
-            className="w-full px-3 py-2.5 border border-border rounded text-sm text-ink bg-paper outline-none focus:border-accent transition-colors"
-          >
-            {WAIT_STRATEGIES.map((w) => (
-              <option key={w.value} value={w.value}>{w.label}</option>
-            ))}
-          </select>
-        </div>
-
-        {/* Mismatch Threshold */}
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <label className="text-xs font-semibold text-muted uppercase tracking-wide" htmlFor="threshold-slider">
-              Mismatch Threshold
-            </label>
-            <span className="text-xs font-mono text-accent font-bold">{threshold.toFixed(1)}%</span>
-          </div>
-          <input
-            id="threshold-slider"
-            type="range"
-            min="0"
-            max="5"
-            step="0.1"
-            value={threshold}
-            onChange={(e) => setThreshold(parseFloat(e.target.value))}
-            className="w-full accent-accent"
-          />
-          <div className="flex justify-between text-[10px] text-muted font-mono mt-0.5">
-            <span>0%</span><span>5%</span>
-          </div>
-        </div>
-
-        {/* AI Analysis Toggle */}
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-semibold text-ink">AI Analysis</p>
-            <p className="text-xs text-muted">Detect root causes and suggest fixes automatically</p>
-          </div>
-          <button
-            id="ai-toggle"
-            onClick={() => setAiAnalysis(!aiAnalysis)}
-            className={`w-12 h-6 rounded-full transition-colors relative ${
-              aiAnalysis ? 'bg-accent' : 'bg-border'
-            }`}
-          >
-            <span
-              className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all shadow ${
-                aiAnalysis ? 'left-7' : 'left-1'
-              }`}
+      <Card>
+        <CardContent className="p-6 space-y-6">
+          {/* URL */}
+          <div className="space-y-2">
+            <Label htmlFor="url-input">URL to Test *</Label>
+            <Input
+              id="url-input"
+              type="url"
+              value={url}
+              onChange={(e) => { setUrl(e.target.value); setErrors((p) => ({ ...p, url: '' })); }}
+              placeholder="https://example.com"
+              className={errors.url ? 'border-destructive focus-visible:ring-destructive' : ''}
             />
-          </button>
-        </div>
+            {errors.url && <p className="text-xs text-destructive">{errors.url}</p>}
+          </div>
 
-        {/* Advanced Section */}
-        <div className="border-t border-border pt-4">
-          <button
-            onClick={() => setAdvanced(!advanced)}
-            className="flex items-center gap-2 text-xs font-semibold text-muted uppercase tracking-wide hover:text-ink transition-colors"
-          >
-            <span className={`transition-transform ${advanced ? 'rotate-90' : ''}`}>›</span>
-            Advanced Options
-          </button>
-
-          {advanced && (
-            <div className="mt-4 space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-muted mb-1.5 uppercase tracking-wide" htmlFor="ignore-rects">
-                  Ignore Regions (JSON array)
-                </label>
-                <textarea
-                  id="ignore-rects"
-                  value={ignoreRects}
-                  onChange={(e) => { setIgnoreRects(e.target.value); setErrors((p) => ({ ...p, ignoreRects: '' })); }}
-                  rows={3}
-                  className={`w-full px-3 py-2 border rounded text-xs font-mono text-ink bg-paper outline-none focus:border-accent transition-colors resize-none ${
-                    errors.ignoreRects ? 'border-red' : 'border-border'
-                  }`}
-                  placeholder='[{"x":0,"y":0,"width":100,"height":50}]'
-                />
-                {errors.ignoreRects && <p className="text-xs text-red mt-1">{errors.ignoreRects}</p>}
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-muted mb-1.5 uppercase tracking-wide" htmlFor="auth-cookies">
-                  Auth Cookies (JSON array)
-                </label>
-                <textarea
-                  id="auth-cookies"
-                  value={cookies}
-                  onChange={(e) => { setCookies(e.target.value); setErrors((p) => ({ ...p, cookies: '' })); }}
-                  rows={3}
-                  className={`w-full px-3 py-2 border rounded text-xs font-mono text-ink bg-paper outline-none focus:border-accent transition-colors resize-none ${
-                    errors.cookies ? 'border-red' : 'border-border'
-                  }`}
-                  placeholder='[{"name":"session","value":"abc123","domain":"example.com"}]'
-                />
-                {errors.cookies && <p className="text-xs text-red mt-1">{errors.cookies}</p>}
-              </div>
+          {/* Browser Selection */}
+          <div className="space-y-2">
+            <Label>Browsers</Label>
+            <div className="flex flex-wrap gap-2">
+              {BROWSERS.map((b) => {
+                const cfg = getBrowserConfig(b);
+                const { Icon } = cfg;
+                const active = browsers.includes(b);
+                return (
+                  <Button
+                    key={b}
+                    id={`browser-${b}`}
+                    type="button"
+                    variant={active ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => toggleBrowser(b)}
+                    className="gap-2"
+                  >
+                    <Icon size={14} />
+                    {cfg.label}
+                  </Button>
+                );
+              })}
             </div>
+            {errors.browsers && <p className="text-xs text-destructive">{errors.browsers}</p>}
+          </div>
+
+          {/* Viewport */}
+          <div className="space-y-2">
+            <Label htmlFor="viewport-select">Viewport</Label>
+            <Select
+              onValueChange={(v) => setViewport(JSON.parse(v))}
+              defaultValue={JSON.stringify(VIEWPORTS[0].value)}
+            >
+              <SelectTrigger id="viewport-select">
+                <SelectValue placeholder="Select viewport" />
+              </SelectTrigger>
+              <SelectContent>
+                {VIEWPORTS.map((v) => (
+                  <SelectItem key={v.label} value={JSON.stringify(v.value)}>{v.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Wait Strategy */}
+          <div className="space-y-2">
+            <Label htmlFor="wait-select">Wait Strategy</Label>
+            <Select value={waitStrategy} onValueChange={setWait}>
+              <SelectTrigger id="wait-select">
+                <SelectValue placeholder="Select wait strategy" />
+              </SelectTrigger>
+              <SelectContent>
+                {WAIT_STRATEGIES.map((w) => (
+                  <SelectItem key={w.value} value={w.value}>{w.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Mismatch Threshold */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="threshold-slider">Mismatch Threshold</Label>
+              <span className="text-xs font-mono text-accent font-bold">{threshold.toFixed(1)}%</span>
+            </div>
+            <input
+              id="threshold-slider"
+              type="range"
+              min="0"
+              max="5"
+              step="0.1"
+              value={threshold}
+              onChange={(e) => setThreshold(parseFloat(e.target.value))}
+              className="w-full accent-accent"
+            />
+            <div className="flex justify-between text-[10px] text-muted-foreground font-mono mt-0.5">
+              <span>0%</span><span>5%</span>
+            </div>
+          </div>
+
+          {/* AI Analysis Toggle */}
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-semibold text-foreground">AI Analysis</p>
+              <p className="text-xs text-muted-foreground">Detect root causes and suggest fixes automatically</p>
+            </div>
+            <Switch id="ai-toggle" checked={aiAnalysis} onCheckedChange={setAiAnalysis} />
+          </div>
+
+          {/* Advanced Section */}
+          <Separator />
+          <div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setAdvanced(!advanced)}
+              className="gap-1 text-xs font-semibold uppercase tracking-wide"
+            >
+              <ChevronRight className={`w-3 h-3 transition-transform ${advanced ? 'rotate-90' : ''}`} />
+              Advanced Options
+            </Button>
+
+            {advanced && (
+              <div className="mt-4 space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="ignore-rects">Ignore Regions (JSON array)</Label>
+                  <textarea
+                    id="ignore-rects"
+                    value={ignoreRects}
+                    onChange={(e) => { setIgnoreRects(e.target.value); setErrors((p) => ({ ...p, ignoreRects: '' })); }}
+                    rows={3}
+                    className={`w-full px-3 py-2 border shadow-sm dark:shadow-2xl rounded text-xs font-mono bg-transparent outline-none focus:border-accent transition-colors resize-none ${errors.ignoreRects ? 'border-destructive' : 'border-input'
+                      }`}
+                    placeholder='[{"x":0,"y":0,"width":100,"height":50}]'
+                  />
+                  {errors.ignoreRects && <p className="text-xs text-destructive">{errors.ignoreRects}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="auth-cookies">Auth Cookies (JSON array)</Label>
+                  <textarea
+                    id="auth-cookies"
+                    value={cookies}
+                    onChange={(e) => { setCookies(e.target.value); setErrors((p) => ({ ...p, cookies: '' })); }}
+                    rows={3}
+                    className={`w-full px-3 py-2 border shadow-sm dark:shadow-2xl rounded text-xs font-mono bg-transparent outline-none focus:border-accent transition-colors resize-none ${errors.cookies ? 'border-destructive' : 'border-input'
+                      }`}
+                    placeholder='[{"name":"session","value":"abc123","domain":"example.com"}]'
+                  />
+                  {errors.cookies && <p className="text-xs text-destructive">{errors.cookies}</p>}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Submit */}
+          {errors.submit && (
+            <div className="text-xs text-destructive bg-destructive/10 rounded px-3 py-2">{errors.submit}</div>
           )}
-        </div>
 
-        {/* Submit */}
-        {errors.submit && (
-          <div className="text-xs text-red bg-[#ffe8e5] rounded px-3 py-2">{errors.submit}</div>
-        )}
-
-        <button
-          id="submit-run-button"
-          onClick={handleSubmit}
-          disabled={isPending}
-          className="w-full bg-accent text-white py-3 rounded font-semibold text-sm hover:bg-opacity-90 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-        >
-          {isPending ? <Spinner size="sm" /> : null}
-          {isPending ? 'Starting…' : 'Run Tests →'}
-        </button>
-      </div>
+          <Button
+            id="submit-run-button"
+            onClick={handleSubmit}
+            disabled={isPending}
+            className="w-full dark:shadow-2xl shadow-md"
+          >
+            {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+            {isPending ? 'Starting…' : 'Run Tests →'}
+          </Button>
+        </CardContent>
+      </Card>
     </div>
   );
 }

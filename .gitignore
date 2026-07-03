@@ -1,7 +1,6 @@
 .env
-node_modules
-playwright-report
-screenshots
-test-results
-test
-package-lock.json
+node_modules/
+playwright-report/
+screenshots/
+test-results/
+.DS_Store

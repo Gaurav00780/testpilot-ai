@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 
-const WS_URL = 'ws://localhost:3001/ws';
+const WS_URL = `ws://${window.location.hostname}:3001/ws`;
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 2000;
 
