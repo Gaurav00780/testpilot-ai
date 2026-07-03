@@ -5,7 +5,7 @@
 export function RunHealthChart({ runs = [] }) {
   if (!runs.length) {
     return (
-      <div className="h-20 flex items-center justify-center text-muted text-xs">
+      <div className="h-20 flex items-center justify-center text-muted-foreground text-xs">
         No runs yet
       </div>
     );
@@ -28,7 +28,7 @@ export function RunHealthChart({ runs = [] }) {
   };
 
   const verdictToColor = (verdict) => {
-    if (!verdict) return '#ddd9d3';
+    if (!verdict) return '#a1a1aa';
     const v = verdict.toLowerCase();
     if (v === 'pass') return '#1a7a4a';
     if (v === 'warn') return '#b85e00';
@@ -73,7 +73,7 @@ export function RunHealthChart({ runs = [] }) {
             cy={p.y}
             r={3}
             fill={verdictToColor(p.verdict)}
-            stroke="white"
+            stroke="hsl(var(--card))"
             strokeWidth="1.5"
           />
         ))}
@@ -81,7 +81,7 @@ export function RunHealthChart({ runs = [] }) {
       {/* Legend */}
       <div className="flex gap-4 mt-2">
         {[['#1a7a4a', 'Pass'], ['#b85e00', 'Warn'], ['#c0210f', 'Fail']].map(([color, label]) => (
-          <span key={label} className="flex items-center gap-1 text-[10px] text-muted">
+          <span key={label} className="flex items-center gap-1 text-[10px] text-muted-foreground">
             <span className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
             {label}
           </span>

@@ -1,11 +1,13 @@
 import { useState } from 'react';
+import { Button } from '../ui/button';
+import { cn } from '@/lib/utils';
 
 const STORAGE_BASE = 'http://localhost:3001';
 
 export function ScreenshotViewer({ screenshotUrl, diffUrl }) {
   const [showDiff, setShowDiff] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
-  const [viewMode, setViewMode] = useState('single'); // 'single' | 'side-by-side'
+  const [viewMode, setViewMode] = useState('single');
 
   const resolveUrl = (url) => {
     if (!url) return null;
@@ -18,7 +20,7 @@ export function ScreenshotViewer({ screenshotUrl, diffUrl }) {
 
   if (!screenshotSrc) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-tag-bg text-muted text-sm">
+      <div className="flex-1 flex items-center justify-center bg-muted/30 text-muted-foreground text-sm">
         No screenshot available
       </div>
     );
@@ -26,50 +28,45 @@ export function ScreenshotViewer({ screenshotUrl, diffUrl }) {
 
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
-      {/* Toolbar */}
-      <div className="flex items-center gap-2 px-4 py-2 border-b border-border bg-paper shrink-0">
-        <button
+      <div className="flex items-center gap-2 px-4 py-2 border-b border-border bg-muted/30 shrink-0">
+        <Button
+          variant={viewMode === 'single' ? 'default' : 'outline'}
+          size="sm"
           onClick={() => setViewMode('single')}
-          className={`text-xs px-2 py-1 rounded border transition-colors ${
-            viewMode === 'single' ? 'border-accent text-accent bg-accent/5' : 'border-border text-muted hover:text-ink'
-          }`}
         >
           Single
-        </button>
+        </Button>
         {diffSrc && (
           <>
-            <button
+            <Button
+              variant={viewMode === 'side-by-side' ? 'default' : 'outline'}
+              size="sm"
               onClick={() => setViewMode('side-by-side')}
-              className={`text-xs px-2 py-1 rounded border transition-colors ${
-                viewMode === 'side-by-side' ? 'border-accent text-accent bg-accent/5' : 'border-border text-muted hover:text-ink'
-              }`}
             >
               Side by Side
-            </button>
+            </Button>
             <div className="w-px h-4 bg-border" />
-            <button
+            <Button
+              variant={showDiff ? 'destructive' : 'outline'}
+              size="sm"
               onClick={() => setShowDiff(!showDiff)}
-              className={`text-xs px-2 py-1 rounded border transition-colors ${
-                showDiff ? 'border-red text-red bg-red/5' : 'border-border text-muted hover:text-ink'
-              }`}
             >
               {showDiff ? 'Hide Diff' : 'Show Diff'}
-            </button>
+            </Button>
           </>
         )}
       </div>
 
-      {/* Image area */}
       <div className="flex-1 overflow-auto bg-[#1a1916] p-4">
         {viewMode === 'single' ? (
           <div className="relative inline-block">
             {!imageLoaded && (
-              <div className="skeleton w-full" style={{ height: 600, minWidth: 400 }} />
+              <div className="skeleton" style={{ height: 600, minWidth: 400 }} />
             )}
             <img
               src={screenshotSrc}
               alt="Browser screenshot"
-              className={`max-w-full rounded shadow-lg ${imageLoaded ? '' : 'hidden'}`}
+              className={cn('max-w-full rounded shadow-lg', imageLoaded ? '' : 'hidden')}
               onLoad={() => setImageLoaded(true)}
             />
             {showDiff && diffSrc && imageLoaded && (

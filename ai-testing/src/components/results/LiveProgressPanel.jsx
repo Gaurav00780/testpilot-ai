@@ -1,5 +1,8 @@
 import { useNavigate } from 'react-router-dom';
 import { getBrowserConfig } from '../../utils/browserIcons';
+import { Button } from '../ui/button';
+import { Progress } from '../ui/progress';
+import { Loader2 } from 'lucide-react';
 
 export function LiveProgressPanel({ run, wsState }) {
   const navigate = useNavigate();
@@ -13,18 +16,20 @@ export function LiveProgressPanel({ run, wsState }) {
             The run may still be processing in the background. Refresh to see the latest results.
           </p>
           <div className="flex gap-3 justify-center">
-            <button
+            <Button
               onClick={() => window.location.reload()}
-              className="px-4 py-2 bg-amber-500 text-white text-sm font-medium rounded hover:bg-amber-600 transition-colors"
+              variant="default"
+              className="bg-amber-500 hover:bg-amber-600 text-white"
             >
               Refresh Results
-            </button>
-            <button
+            </Button>
+            <Button
               onClick={() => navigate('/runs/new')}
-              className="px-4 py-2 border border-amber-400 text-amber-700 text-sm font-medium rounded hover:bg-amber-50 transition-colors"
+              variant="outline"
+              className="border-amber-400 text-amber-700 hover:bg-amber-50"
             >
               New Run
-            </button>
+            </Button>
           </div>
         </div>
       </div>
@@ -40,42 +45,37 @@ export function LiveProgressPanel({ run, wsState }) {
 
   const currentStage = wsState.stage || 'queued';
   const progressPercent = stageProgress[currentStage] || 5;
+  const isQueued = currentStage === 'queued';
 
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-8 gap-8">
       <div className="flex flex-col items-center gap-4">
-        <div className="flex items-center gap-3 text-lg font-medium text-ink">
-          <span className="text-amber animate-spin">⟳</span>
-          Running cross-browser tests...
+        <div className="flex items-center gap-3 text-lg font-medium text-foreground">
+          <Loader2 className="w-5 h-5 animate-spin text-accent" />
+          {isQueued ? 'Queued...' : 'Running cross-browser tests...'}
         </div>
-        
+
         <div className="w-96 flex flex-col gap-2">
-          <div className="h-2 bg-border rounded-full overflow-hidden w-full">
-            <div
-              className="h-full bg-accent transition-all duration-700 rounded-full"
-              style={{ width: `${progressPercent}%` }}
-            />
-          </div>
-          <div className="flex justify-between text-xs text-muted font-mono">
+          <Progress value={progressPercent} className="h-2" />
+          <div className="flex justify-between text-xs text-muted-foreground font-mono">
             <span>Stage: {currentStage === 'ai' ? 'AI Analysis' : currentStage}</span>
             <span>{progressPercent}%</span>
           </div>
           {wsState.message && (
-            <p className="text-sm text-center text-muted italic mt-2">{wsState.message}</p>
+            <p className="text-sm text-center text-muted-foreground italic mt-2">{wsState.message}</p>
           )}
         </div>
       </div>
 
       <div className="w-96">
-        <h4 className="text-xs font-semibold text-muted uppercase tracking-wider mb-4 border-b border-border pb-2">Browser Status</h4>
+        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4 pb-2">Browser Status</h4>
         <div className="flex flex-col gap-3">
           {run?.browsers?.map(browser => {
             const config = getBrowserConfig(browser);
             const browserResult = run?.browserResults?.find(br => br.browser === browser);
             const isDone = browserResult?.status === 'ok' || browserResult?.status === 'error';
-            // Simple heuristics for currently running
             const isRunning = wsState.browserStatus?.[browser] === 'running' || (!isDone && currentStage !== 'queued');
-            
+
             const liveIssuesCount = wsState.liveIssues?.[browser]?.length || 0;
 
             return (
@@ -85,17 +85,17 @@ export function LiveProgressPanel({ run, wsState }) {
                     {isDone ? (
                       <span className="text-green text-sm">✓</span>
                     ) : isRunning ? (
-                      <span className="text-amber animate-spin text-sm">⟳</span>
+                      <Loader2 className="w-4 h-4 animate-spin text-amber" />
                     ) : (
-                      <span className="text-muted text-sm">○</span>
+                      <span className="text-muted-foreground text-sm">○</span>
                     )}
                   </div>
-                  <config.Icon size={16} className={isDone ? 'text-ink' : isRunning ? 'text-ink' : 'text-muted'} />
-                  <span className={`text-sm ${isDone ? 'text-ink' : isRunning ? 'text-ink' : 'text-muted'}`}>
+                  <config.Icon size={16} />
+                  <span className="text-sm text-foreground">
                     {config.label}
                   </span>
-                  
-                  <span className="text-xs text-muted ml-auto font-mono">
+
+                  <span className="text-xs text-muted-foreground ml-auto font-mono">
                     {isDone ? 'completed' : isRunning ? 'running...' : 'queued'}
                   </span>
                 </div>

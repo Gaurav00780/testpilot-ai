@@ -3,14 +3,66 @@
 @tailwind utilities;
 
 @layer base {
-  *, *::before, *::after {
+  :root {
+    --background: 40 23% 97%;
+    --foreground: 60 4% 10%;
+    --card: 40 19% 94%;
+    --card-foreground: 60 4% 10%;
+    --popover: 40 19% 94%;
+    --popover-foreground: 60 4% 10%;
+    --primary: 15 62% 47%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 38 15% 89%;
+    --secondary-foreground: 60 4% 10%;
+    --muted: 38 15% 89%;
+    --muted-foreground: 60 4% 40%;
+    --accent: 15 62% 47%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 356 76% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: hsl(40 13% 82%);
+    --input: hsl(40 13% 82%);
+    --ring: 15 62% 47%;
+    --radius: 0.625rem;
+    --shadow-2xl: 0 1px 3px 0px hsla(0, 0%, 0%, 0.705);
+  }
+
+  .dark {
+    --background: 30 5% 9%;
+    --foreground: 45 15% 95%;
+    --card: 40 5% 11%;
+    --card-foreground: 45 15% 95%;
+    --popover: 40 5% 11%;
+    --popover-foreground: 45 15% 95%;
+    --primary: 15 64% 53%;
+    --primary-foreground: 45 15% 95%;
+    --secondary: 36 7% 14%;
+    --secondary-foreground: 45 15% 95%;
+    --muted: 36 7% 14%;
+    --muted-foreground: 40 6% 61%;
+    --accent: 15 64% 53%;
+    --accent-foreground: 45 15% 95%;
+    --destructive: 356 80% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: oklch(0.2972 0 0);
+    --input: oklch(0.2972 0 0);
+    --ring: 15 64% 53%;
+    --shadow-2xl: 0 1px 3px 0px hsla(0, 0%, 0%, 0.705);
+  }
+}
+
+@layer base {
+
+  *,
+  *::before,
+  *::after {
     box-sizing: border-box;
   }
 
   html {
-    font-family: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif;
-    background-color: #f5f2ed;
-    color: #0f0e0d;
+    font-family: 'Inter', system-ui, sans-serif;
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
@@ -29,46 +81,62 @@
 }
 
 @layer components {
+
   /* Scrollbar styling */
   .scrollbar-thin::-webkit-scrollbar {
     width: 4px;
     height: 4px;
   }
+
   .scrollbar-thin::-webkit-scrollbar-track {
     background: transparent;
   }
+
   .scrollbar-thin::-webkit-scrollbar-thumb {
-    background: #ddd9d3;
+    background: var(--border);
     border-radius: 2px;
   }
+
   .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-    background: #6b6560;
+    background: hsl(var(--muted-foreground));
   }
 
   /* Blinking cursor for SSE streaming */
   .streaming-cursor::after {
-    content: '▋';
+    content: '\25CB';
     animation: blink 1s step-end infinite;
-    color: #e8400c;
+    color: hsl(var(--primary));
     margin-left: 1px;
   }
 
   @keyframes blink {
-    0%, 100% { opacity: 1; }
-    50%       { opacity: 0; }
+
+    0%,
+    100% {
+      opacity: 1;
+    }
+
+    50% {
+      opacity: 0;
+    }
   }
 
   /* Skeleton loading */
   .skeleton {
-    background: linear-gradient(90deg, #f0ece6 25%, #e8e3dc 50%, #f0ece6 75%);
+    background: linear-gradient(90deg, hsl(var(--muted)) 25%, var(--border) 50%, hsl(var(--muted)) 75%);
     background-size: 200% 100%;
     animation: skeleton-shimmer 1.5s ease-in-out infinite;
-    border-radius: 4px;
+    border-radius: 8px;
   }
 
   @keyframes skeleton-shimmer {
-    0%   { background-position: 200% 0; }
-    100% { background-position: -200% 0; }
+    0% {
+      background-position: 200% 0;
+    }
+
+    100% {
+      background-position: -200% 0;
+    }
   }
 
   /* Progress bar fill animation */
@@ -76,18 +144,21 @@
     transition: width 0.4s ease;
   }
 
-  /* Sidebar transition */
-  .sidebar-transition {
-    transition: width 0.2s ease, padding 0.2s ease;
-  }
 
-  /* Card base */
-  .tp-card {
-    @apply bg-card border border-border rounded bg-white;
+  /* Responsive content width adjustment when sidebar is collapsed */
+  [data-sidebar-collapsed="true"] .max-w-7xl {
+    max-width: 90rem;
   }
-
-  /* Badge base */
-  .tp-badge {
-    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold font-sans uppercase tracking-wide;
+  [data-sidebar-collapsed="true"] .max-w-6xl {
+    max-width: 82rem;
+  }
+  [data-sidebar-collapsed="true"] .max-w-5xl {
+    max-width: 74rem;
+  }
+  [data-sidebar-collapsed="true"] .max-w-4xl {
+    max-width: 66rem;
+  }
+  [data-sidebar-collapsed="true"] .max-w-xl {
+    max-width: 46rem;
   }
 }

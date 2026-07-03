@@ -36,26 +36,26 @@ export const BrowserIcons = {
 export const BROWSER_CONFIG = {
   chromium: {
     label: 'Chrome',
-    color: '#1a6bff',
-    bgColor: '#e8f0ff',
+    color: '#3b82f6',
+    bgColor: '#eff6ff',
     Icon: BrowserIcons.chromium,
   },
   firefox: {
     label: 'Firefox',
-    color: '#e8400c',
-    bgColor: '#fff0ec',
+    color: '#f97316',
+    bgColor: '#fff7ed',
     Icon: BrowserIcons.firefox,
   },
   webkit: {
     label: 'Safari',
-    color: '#6b6560',
-    bgColor: '#f0ece6',
+    color: '#71717a',
+    bgColor: '#f4f4f5',
     Icon: BrowserIcons.webkit,
   },
   'mobile-chrome': {
     label: 'Mobile',
     color: '#1a7a4a',
-    bgColor: '#e8f5ef',
+    bgColor: '#edf6f0',
     Icon: BrowserIcons['mobile-chrome'],
   },
 };
@@ -63,8 +63,8 @@ export const BROWSER_CONFIG = {
 export function getBrowserConfig(browser) {
   return BROWSER_CONFIG[browser] || {
     label: browser,
-    color: '#6b6560',
-    bgColor: '#f0ece6',
+    color: '#71717a',
+    bgColor: '#f4f4f5',
     Icon: BrowserIcons.chromium,
   };
 }

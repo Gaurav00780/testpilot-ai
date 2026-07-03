@@ -25,6 +25,14 @@ const useAppStore = create(
       sidebarCollapsed: false,
       setSidebarCollapsed: (v) => set({ sidebarCollapsed: v }),
       toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
+
+      // Mobile sidebar state
+      mobileSidebarOpen: false,
+      setMobileSidebarOpen: (v) => set({ mobileSidebarOpen: v }),
+
+      // Theme state
+      theme: 'light',
+      toggleTheme: () => set((s) => ({ theme: s.theme === 'dark' ? 'light' : 'dark' })),
     }),
     {
       name: 'testpilot-app-store',
@@ -32,6 +40,7 @@ const useAppStore = create(
       partialize: (state) => ({
         user: state.user,
         sidebarCollapsed: state.sidebarCollapsed,
+        theme: state.theme,
       }),
     }
   )

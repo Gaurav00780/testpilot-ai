@@ -1,16 +1,24 @@
-export function EmptyState({ icon = '📭', title, message, action }) {
+import { Button } from './button';
+import { Inbox } from 'lucide-react';
+
+export function EmptyState({ icon: Icon, title, message, action }) {
   return (
     <div className="flex flex-col items-center justify-center py-16 px-8 text-center">
-      <div className="text-5xl mb-4" role="img" aria-label={title}>{icon}</div>
-      <h3 className="font-serif text-xl text-ink mb-2">{title}</h3>
-      {message && <p className="text-muted text-sm max-w-xs mb-6">{message}</p>}
+      <div className="w-12 h-12 rounded-lg bg-muted/50 flex items-center justify-center mb-4">
+        {Icon ? (
+          typeof Icon === 'string'
+            ? <Inbox className="w-6 h-6 text-muted-foreground" />
+            : <Icon className="w-6 h-6 text-muted-foreground" />
+        ) : (
+          <Inbox className="w-6 h-6 text-muted-foreground" />
+        )}
+      </div>
+      {title && <h3 className="text-lg font-semibold text-foreground mb-1">{title}</h3>}
+      {message && <p className="text-muted-foreground text-sm max-w-xs mb-6">{message}</p>}
       {action && (
-        <button
-          onClick={action.onClick}
-          className="bg-accent text-white px-4 py-2 rounded text-sm font-semibold hover:bg-opacity-90 transition-colors"
-        >
+        <Button onClick={action.onClick}>
           {action.label}
-        </button>
+        </Button>
       )}
     </div>
   );

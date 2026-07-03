@@ -1,6 +1,10 @@
 import { AiIssueDetail } from './AiIssueDetail';
 import { AskAiChat } from './AskAiChat';
 import useAppStore from '../../store/useAppStore';
+import { Button } from '../ui/button';
+import { Badge } from '../ui/badge';
+import { ScrollArea } from '../ui/scroll-area';
+import { Skeleton } from '../ui/skeleton';
 
 export function AiPanel({ run, runId, allIssues, activeIssueId, isLive }) {
   const { activeBrowser, setActiveIssueId } = useAppStore();
@@ -9,41 +13,43 @@ export function AiPanel({ run, runId, allIssues, activeIssueId, isLive }) {
   const browserResult = run?.browserResults?.find((br) => br.browser === activeBrowser);
 
   return (
-    <div className="h-full flex flex-col overflow-hidden bg-paper">
-      <div className="flex-1 overflow-y-auto scrollbar-thin p-4">
+    <div className="h-full flex flex-col overflow-hidden">
+      <ScrollArea className="flex-1 p-4">
         {activeIssue ? (
           <>
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => setActiveIssueId(null)}
-              className="text-xs text-muted hover:text-ink transition-colors mb-4 flex items-center gap-1"
+              className="mb-4 gap-1 text-xs"
             >
               ← All Issues
-            </button>
+            </Button>
             <AiIssueDetail issue={activeIssue} />
-            <div className="border-t border-border pt-4 mt-4">
+            <div className="pt-4 mt-4">
               <AskAiChat runId={runId} issueId={activeIssueId} />
             </div>
           </>
         ) : (
           <>
-            <h2 className="font-semibold text-lg text-ink mb-4">AI Analysis</h2>
+            <h2 className="font-semibold text-lg text-foreground mb-4">AI Analysis</h2>
             {isLive ? (
-              <div className="space-y-3 animate-pulse">
-                <div className="h-3 bg-border rounded w-full"></div>
-                <div className="h-3 bg-border rounded w-5/6"></div>
-                <div className="h-3 bg-border rounded w-4/6"></div>
+              <div className="space-y-3">
+                <Skeleton className="h-3 w-full" />
+                <Skeleton className="h-3 w-5/6" />
+                <Skeleton className="h-3 w-4/6" />
               </div>
             ) : run?.status === 'completed' ? (
               <div className="space-y-6">
                 {browserResult?.aiSummary && (
-                  <p className="text-sm text-ink leading-relaxed">
+                  <p className="text-sm text-foreground leading-relaxed">
                     {browserResult.aiSummary}
                   </p>
                 )}
 
                 {allIssues && allIssues.length > 0 && (
                   <div>
-                    <p className="text-[10px] font-mono text-muted uppercase tracking-wider mb-2">By Category</p>
+                    <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-2">By Category</p>
                     <div className="flex flex-wrap gap-2">
                       {Object.entries(
                         allIssues.reduce((acc, i) => {
@@ -52,9 +58,9 @@ export function AiPanel({ run, runId, allIssues, activeIssueId, isLive }) {
                           return acc;
                         }, {})
                       ).map(([cat, count]) => (
-                        <span key={cat} className="px-2 py-1 bg-tag-bg rounded text-xs text-ink capitalize">
+                        <Badge key={cat} variant="secondary" className="text-xs capitalize">
                           {cat} ({count})
-                        </span>
+                        </Badge>
                       ))}
                     </div>
                   </div>
@@ -62,8 +68,8 @@ export function AiPanel({ run, runId, allIssues, activeIssueId, isLive }) {
 
                 {browserResult?.aiBrowserNotes && (
                   <div>
-                    <p className="text-[10px] font-mono text-muted uppercase tracking-wider mb-2">Browser Notes</p>
-                    <p className="text-sm text-muted italic">
+                    <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-2">Browser Notes</p>
+                    <p className="text-sm text-muted-foreground italic">
                       {browserResult.aiBrowserNotes}
                     </p>
                   </div>
@@ -72,7 +78,7 @@ export function AiPanel({ run, runId, allIssues, activeIssueId, isLive }) {
             ) : null}
           </>
         )}
-      </div>
+      </ScrollArea>
     </div>
   );
 }
