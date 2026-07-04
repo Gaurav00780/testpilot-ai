@@ -18,7 +18,10 @@ const launchers = { chromium, firefox, webkit, 'mobile-chrome': chromium };
     const isMobile = browserType.toLowerCase() === 'mobile-chrome';
     console.log(isMobile ? `Running mobile on ${browserType}` : `Running on ${browserType}`);
     
-    const browser = await launcher.launch({ headless: true });
+    const browserArgs = browserType.toLowerCase() === 'chromium' || browserType.toLowerCase() === 'mobile-chrome' 
+      ? ['--disable-dev-shm-usage', '--no-sandbox', '--disable-setuid-sandbox'] 
+      : [];
+    const browser = await launcher.launch({ headless: true, args: browserArgs });
     try {
       const contextOptions = isMobile 
         ? { ...devices['Pixel 5'] } 
