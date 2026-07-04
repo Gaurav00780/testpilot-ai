@@ -1,7 +1,18 @@
 import { useState, useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 
-const WS_URL = `ws://${window.location.hostname}:3001/ws`;
+const getWsUrl = () => {
+  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api/v1';
+  try {
+    const url = new URL(apiUrl);
+    const protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+    return `${protocol}//${url.host}/ws`;
+  } catch (e) {
+    return `ws://${window.location.hostname}:3001/ws`;
+  }
+};
+
+const WS_URL = getWsUrl();
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 2000;
 
