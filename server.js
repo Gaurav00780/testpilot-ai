@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const { WebSocketServer } = require('ws');
 const http = require('http');
-const { v4: uuidv4 } = require('uuid');
+const crypto = require('crypto');
 const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
@@ -357,7 +357,7 @@ app.post('/api/v1/runs', async (req, res) => {
       return res.status(400).json({ error: 'URL is required' });
     }
 
-    const runId = 'run_' + uuidv4();
+    const runId = 'run_' + crypto.randomUUID();
     const userId = getUserId(req);
     const aiAnalysis = req.body.aiAnalysis === true;
     const activeBrowsers = browsers || ['chromium'];
