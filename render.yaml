@@ -13,5 +13,3 @@ services:
         sync: false
       - key: OPENROUTER_API_KEY
         sync: false
-    # The port our Express server binds to
-    port: 3001
