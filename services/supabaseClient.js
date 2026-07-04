@@ -8,9 +8,17 @@ if (!supabaseUrl || !supabaseKey) {
   console.error('Error: SUPABASE_URL and SUPABASE_ANON_KEY/SUPABASE_SERVICE_ROLE_KEY must be set in your .env file.');
 }
 
+const WebSocket = require('ws');
+
 const supabase = createClient(supabaseUrl, supabaseKey, {
   auth: {
     persistSession: false
+  },
+  global: {
+    WebSocket
+  },
+  realtime: {
+    transport: WebSocket
   }
 });
 
