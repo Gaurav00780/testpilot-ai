@@ -464,11 +464,11 @@ app.post('/api/v1/runs', async (req, res) => {
         for (const br of browserResults) {
           const imgPath = path.join(__dirname, 'screenshots', `${runId}_${br.browser}.png`);
           br.screenshotUrl = await uploadToSupabase(runId, `${br.browser}.png`, imgPath) 
-            || `http://localhost:3001/screenshots/${runId}_${br.browser}.png`;
+            || `/screenshots/${runId}_${br.browser}.png`;
           
           if (br.localDiffPath) {
             br.diffUrl = await uploadToSupabase(runId, `diff-${br.browser}.png`, br.localDiffPath)
-              || `http://localhost:3001/screenshots/${runId}_diff-${br.browser}.png`;
+              || `/screenshots/${runId}_diff-${br.browser}.png`;
           }
         }
 
