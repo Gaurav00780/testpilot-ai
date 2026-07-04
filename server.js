@@ -1120,7 +1120,7 @@ app.get('/api/v1/insights', async (req, res) => {
   }
 });
 
-const PORT = 3001;
-server.listen(PORT, () => {
+const PORT = process.env.PORT || 3001;
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`Backend server listening on port ${PORT}`);
 });
