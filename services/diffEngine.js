@@ -1,6 +1,5 @@
 const fs = require('fs');
 const PNG = require('pngjs').PNG;
-const pixelmatch = require('pixelmatch').default || require('pixelmatch');
 
 /**
  * Compares two PNG images and generates a visual diff.
@@ -12,7 +11,7 @@ const pixelmatch = require('pixelmatch').default || require('pixelmatch');
  * @returns {Promise<object>} Resolves with { mismatchedPixels, totalPixels, percentage, match }
  */
 function compareImages(baselinePath, testPath, diffPath, options = { threshold: 0.1 }) {
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
         try {
             if (!fs.existsSync(baselinePath)) {
                 return reject(new Error(`Baseline image not found: ${baselinePath}`));
@@ -45,6 +44,10 @@ function compareImages(baselinePath, testPath, diffPath, options = { threshold: 
             
             // Create a blank image to hold the diff output
             const diff = new PNG({ width, height });
+
+            // Dynamically import pixelmatch to support ESM
+            const pixelmatchModule = await import('pixelmatch');
+            const pixelmatch = pixelmatchModule.default || pixelmatchModule;
 
             // Run pixelmatch
             const mismatchedPixels = pixelmatch(
