@@ -25,9 +25,8 @@ const useAskAi = (runId) => {
 
     try {
       // 3. Fetch SSE stream
-      const response = await fetch(
-        `http://localhost:3001/api/v1/runs/${runId}/ask`,
-        {
+        const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api/v1';
+        const response = await fetch(`${baseUrl}/runs/${runId}/ask`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ question, issueId })

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Button } from '../ui/button';
 import { cn } from '@/lib/utils';
 
-const STORAGE_BASE = 'http://localhost:3001';
+const STORAGE_BASE = import.meta.env.VITE_STORAGE_URL || 'http://localhost:3001';
 
 export function ScreenshotViewer({ screenshotUrl, diffUrl }) {
   const [showDiff, setShowDiff] = useState(false);
