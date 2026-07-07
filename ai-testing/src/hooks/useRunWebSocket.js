@@ -41,7 +41,7 @@ const useRunWebSocket = (runId) => {
     setWsState(prev => ({
       ...prev,
       connected: false,
-      message: 'Checking status in background...',
+      message: 'AI analysis running in background...',
     }));
 
     pollTimerRef.current = setInterval(async () => {

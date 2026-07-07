@@ -40,28 +40,41 @@ export function LiveProgressPanel({ run, wsState }) {
   }
 
   const stageProgress = {
-    capturing: 25,
-    diffing: 50,
-    ai: 75,
+    queued: 5,
+    running: 30,
+    capturing: 30,
+    diffing: 60,
+    'ai analysis': 80,
+    ai: 80,
     completed: 100
   };
 
   const currentStage = wsState.stage || 'queued';
-  const progressPercent = stageProgress[currentStage] || 5;
+  const progressPercent = stageProgress[currentStage] || 15;
   const isQueued = currentStage === 'queued';
+  const isPolling = !wsState.connected && wsState.message?.includes('background');
+
+  const stageLabel = {
+    queued: 'Queued',
+    running: 'Capturing screenshots',
+    capturing: 'Capturing screenshots',
+    diffing: 'Comparing images',
+    'ai analysis': 'AI Analysis',
+    ai: 'AI Analysis',
+  }[currentStage] || currentStage;
 
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-8 gap-8">
       <div className="flex flex-col items-center gap-4">
         <div className="flex items-center gap-3 text-lg font-medium text-foreground">
           <Loader2 className="w-5 h-5 animate-spin text-accent" />
-          {isQueued ? 'Queued...' : 'Running cross-browser tests...'}
+          {isQueued ? 'Queued...' : isPolling ? 'AI analysis in progress...' : 'Running cross-browser tests...'}
         </div>
 
         <div className="w-96 flex flex-col gap-2">
           <Progress value={progressPercent} className="h-2" />
           <div className="flex justify-between text-xs text-muted-foreground font-mono">
-            <span>Stage: {currentStage === 'ai' ? 'AI Analysis' : currentStage}</span>
+            <span>Stage: {stageLabel}</span>
             <span>{progressPercent}%</span>
           </div>
           {wsState.message && (

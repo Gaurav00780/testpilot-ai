@@ -419,15 +419,21 @@ app.post('/api/v1/runs', async (req, res) => {
     });
 
     child.stderr.on('data', (data) => {
-      console.error(`[runner ${runId} ERR] ${data}`);
-      broadcast(runId, {
-        event: 'run:error',
-        error: data.toString()
-      });
+      // Only log stderr — Playwright writes normal info/warnings to stderr
+      // Don't broadcast run:error here as it would kill the run prematurely
+      console.error(`[runner ${runId} ERR] ${data.toString().trim()}`);
     });
 
     child.on('close', async (code) => {
       console.log(`[runner ${runId}] process exited with code ${code}`);
+
+      if (code !== 0) {
+        console.error(`[runner ${runId}] Runner failed with exit code ${code}`);
+        await supabase.from('runs').update({ status: 'error', verdict: 'fail' }).eq('id', runId);
+        broadcast(runId, { event: 'run:error', error: `Screenshot runner failed (exit code ${code}). Check server logs.` });
+        return;
+      }
+
       broadcast(runId, { event: 'run:progress', stage: 'diffing', message: 'Comparing images...' });
 
       try {
