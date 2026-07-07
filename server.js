@@ -397,6 +397,15 @@ app.post('/api/v1/runs', async (req, res) => {
     const runnerScript = path.join(__dirname, 'screenshots', 'runner.js');
     const child = spawn('node', [runnerScript, url, activeBrowsers.join(','), runId]);
 
+    // Global safety net: kill the runner if it takes longer than 3 minutes
+    const RUNNER_TIMEOUT_MS = 3 * 60 * 1000;
+    const runnerKillTimer = setTimeout(() => {
+      if (!child.killed) {
+        console.error(`[runner ${runId}] Timed out after ${RUNNER_TIMEOUT_MS / 1000}s — killing process`);
+        child.kill('SIGKILL');
+      }
+    }, RUNNER_TIMEOUT_MS);
+
     child.stdout.on('data', (data) => {
       const lines = data.toString().split('\n');
       for (const line of lines) {
@@ -425,6 +434,7 @@ app.post('/api/v1/runs', async (req, res) => {
     });
 
     child.on('close', async (code) => {
+      clearTimeout(runnerKillTimer); // clear the safety-net timer
       console.log(`[runner ${runId}] process exited with code ${code}`);
 
       if (code !== 0) {
