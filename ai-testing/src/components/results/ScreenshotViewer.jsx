@@ -2,7 +2,19 @@ import { useState, useEffect } from 'react';
 import { Button } from '../ui/button';
 import { cn } from '@/lib/utils';
 
-const STORAGE_BASE = import.meta.env.VITE_STORAGE_URL || 'http://localhost:3001';
+// Resolve base for relative screenshot paths — uses VITE_API_URL origin so it works in all environments
+const getStorageBase = () => {
+  const storageUrl = import.meta.env.VITE_STORAGE_URL;
+  if (storageUrl) return storageUrl;
+  const apiUrl = import.meta.env.VITE_API_URL;
+  if (apiUrl) {
+    try { return new URL(apiUrl).origin; } catch { /* fall through */ }
+  }
+  return `http://${window.location.hostname}:3001`;
+};
+
+const STORAGE_BASE = getStorageBase();
+
 
 export function ScreenshotViewer({ screenshotUrl, diffUrl }) {
   const [showDiff, setShowDiff] = useState(false);

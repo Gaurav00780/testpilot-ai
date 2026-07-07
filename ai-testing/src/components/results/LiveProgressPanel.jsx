@@ -8,25 +8,28 @@ export function LiveProgressPanel({ run, wsState }) {
   const navigate = useNavigate();
 
   if (wsState.error) {
+    const isRunFailed = wsState.error.includes('failed') || wsState.error.includes('error');
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-8 gap-6">
-        <div className="border border-amber-400 bg-amber-50 rounded-lg p-6 max-w-md w-full text-center">
-          <p className="text-amber-700 font-semibold mb-2">Live connection lost</p>
-          <p className="text-amber-600 text-sm mb-4">
-            The run may still be processing in the background. Refresh to see the latest results.
+        <div className={`border rounded-lg p-6 max-w-md w-full text-center ${isRunFailed ? 'border-red-400 bg-red-50' : 'border-amber-400 bg-amber-50'}`}>
+          <p className={`font-semibold mb-2 ${isRunFailed ? 'text-red-700' : 'text-amber-700'}`}>
+            {isRunFailed ? 'Run failed' : 'Live connection lost'}
+          </p>
+          <p className={`text-sm mb-4 ${isRunFailed ? 'text-red-600' : 'text-amber-600'}`}>
+            {wsState.error}
           </p>
           <div className="flex gap-3 justify-center">
             <Button
               onClick={() => window.location.reload()}
               variant="default"
-              className="bg-amber-500 hover:bg-amber-600 text-white"
+              className={isRunFailed ? 'bg-red-500 hover:bg-red-600 text-white' : 'bg-amber-500 hover:bg-amber-600 text-white'}
             >
               Refresh Results
             </Button>
             <Button
               onClick={() => navigate('/runs/new')}
               variant="outline"
-              className="border-amber-400 text-amber-700 hover:bg-amber-50"
+              className={isRunFailed ? 'border-red-400 text-red-700' : 'border-amber-400 text-amber-700 hover:bg-amber-50'}
             >
               New Run
             </Button>
