@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '../ui/button';
 import { cn } from '@/lib/utils';
 
@@ -8,6 +8,10 @@ export function ScreenshotViewer({ screenshotUrl, diffUrl }) {
   const [showDiff, setShowDiff] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [viewMode, setViewMode] = useState('single');
+
+  useEffect(() => {
+    setImageLoaded(false);
+  }, [screenshotUrl, diffUrl]);
 
   const resolveUrl = (url) => {
     if (!url) return null;
@@ -68,6 +72,7 @@ export function ScreenshotViewer({ screenshotUrl, diffUrl }) {
               alt="Browser screenshot"
               className={cn('max-w-full rounded shadow-lg', imageLoaded ? '' : 'hidden')}
               onLoad={() => setImageLoaded(true)}
+              onError={() => setImageLoaded(true)}
             />
             {showDiff && diffSrc && imageLoaded && (
               <img

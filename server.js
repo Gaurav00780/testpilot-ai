@@ -475,14 +475,12 @@ app.post('/api/v1/runs', async (req, res) => {
         if (aiAnalysis) {
           broadcast(runId, { event: 'run:progress', stage: 'ai analysis', message: 'Analyzing differences with AI...' });
           for (const br of browserResults) {
-            if (br.mismatchPercent > 0) {
-              await analyzeBrowserDiff(runId, br);
-              broadcast(runId, {
-                event: 'run:ai_issues',
-                browser: br.browser,
-                issues: br.aiIssues || []
-              });
-            }
+            await analyzeBrowserDiff(runId, br);
+            broadcast(runId, {
+              event: 'run:ai_issues',
+              browser: br.browser,
+              issues: br.aiIssues || []
+            });
           }
         }
 
