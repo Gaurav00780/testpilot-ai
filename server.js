@@ -11,7 +11,8 @@ const supabase = require('./services/supabaseClient');
 require('dotenv').config();
 
 const OPENROUTER_BASE = 'https://openrouter.ai/api/v1';
-const OR_MODEL = process.env.OPENROUTER_MODEL || 'openai/gpt-4o-mini';
+// Default to a free vision-capable model. Override via OPENROUTER_MODEL in .env
+const OR_MODEL = process.env.OPENROUTER_MODEL || 'google/gemini-2.0-flash-exp:free';
 
 function orHeaders() {
   return {
@@ -26,7 +27,7 @@ function aiConfigured() {
   return !!(process.env.OPENROUTER_API_KEY && !process.env.OPENROUTER_API_KEY.startsWith('your_'));
 }
 
-const SYSTEM_PROMPT = `You are a senior front-end QA engineer specializing in cross-browser visual regression testing. You compare a baseline screenshot, a current screenshot, and a pixel-diff overlay to find genuine visual regressions — not rendering noise.
+const SYSTEM_PROMPT = `You are a senior front-end QA engineer specializing in cross-browser visual regression testing. You analyze screenshots (and optionally a pixel-diff overlay) to find genuine visual issues — not rendering noise.
 
 ## Report as issues
 - Layout shifts, broken alignment, overlapping or clipped elements, unintended wrapping/overflow
@@ -52,45 +53,52 @@ const SYSTEM_PROMPT = `You are a senior front-end QA engineer specializing in cr
 "layout" | "typography" | "color" | "spacing" | "responsive" | "content" | "overflow" | "interaction" | "other"
 
 ## Confidence
-Integer 0–100. Base this on diff magnitude and visual clarity, not on how interesting the issue sounds.
+Integer 0–100. Base this on visual clarity and how obvious the issue is.
 
 ## Output rules
 - Output ONLY valid JSON matching the schema you're given. No markdown fences, no preamble, no trailing commentary.
-- If you find no genuine regression, return an empty "issues" array. Never invent issues to avoid an empty result.
+- If you find no genuine issue, return an empty "issues" array. Never invent issues.
 - Each issue must reflect a distinct root cause — don't split one defect into several entries.
 - "suggestedFix" must be a concrete, valid CSS snippet (or a one-line note if CSS alone can't fix it).
-- Never name a selector, class, or property you can't actually see evidence for in the screenshot.
-- Ground every issue in something visible in the diff overlay — don't infer changes the overlay doesn't show.`;
+- Never name a selector, class, or property you can't actually see evidence for in the screenshot.`;
 
-function buildUserPrompt(ts, browserResult) {
-  return `Analyze the attached baseline screenshot, current screenshot, and diff overlay for the "${browserResult.browser}" browser.
+function buildUserPrompt(ts, browserResult, hasDiff) {
+  const analysisContext = hasDiff
+    ? `You are given the screenshot for "${browserResult.browser}" and a pixel-diff overlay comparing it against another browser. Identify cross-browser rendering differences.`
+    : `You are given a single screenshot for "${browserResult.browser}". Analyze it for visual issues, layout problems, or UI defects.`;
+
+  return `${analysisContext}
 
 Return JSON matching exactly this structure:
 
 {
-  "summary": "1-2 sentence overview of what changed visually",
-  "browserNotes": "${browserResult.browser}-specific rendering caveats relevant here (e.g. flexbox gap support, font fallback), or empty string if none apply",
-  "overallStatus": "pass" | "needs_review" | "fail",
+  "summary": "1-2 sentence overview of findings",
+  "browserNotes": "${browserResult.browser}-specific rendering caveats (e.g. flexbox gap support, font fallback), or empty string if none",
+  "overallStatus": "pass",
   "issues": [
     {
       "id": "issue_${ts}_1",
       "browser": "${browserResult.browser}",
       "title": "Short, specific title",
-      "severity": "critical" | "high" | "medium" | "low",
-      "category": "layout" | "typography" | "color" | "spacing" | "responsive" | "content" | "overflow" | "interaction" | "other",
+      "severity": "critical",
+      "category": "layout",
       "location": "Where on the page, e.g. 'header nav', 'hero CTA button'",
-      "rootCause": "What changed and the likely cause",
+      "rootCause": "What the issue is and its likely cause",
       "suggestedFix": "Concrete CSS snippet or fix instruction",
       "affectedProperty": "CSS property most responsible",
-      "confidence": 0-100
+      "confidence": 75
     }
   ]
 }
 
 Rules:
+- severity must be one of: "critical", "high", "medium", "low"
+- category must be one of: "layout", "typography", "color", "spacing", "responsive", "content", "overflow", "interaction", "other"
+- overallStatus must be one of: "pass", "needs_review", "fail"
 - Increment the numeric suffix per issue: issue_${ts}_1, issue_${ts}_2, ...
 - "issues": [] if nothing genuine is found.
-- "overallStatus": "fail" if any issue is "critical"; "needs_review" if any "high"/"medium"; "pass" otherwise.`;
+- "overallStatus": "fail" if any issue is "critical"; "needs_review" if any "high" or "medium"; "pass" otherwise.
+- Output ONLY the JSON object — no markdown, no preamble, no explanation.`;
 }
 
 function tryParseAiJson(text) {
@@ -119,23 +127,34 @@ async function analyzeBrowserDiff(runId, browserResult) {
 
     const ts = Date.now();
     const screenshotsDir = path.join(__dirname, 'screenshots');
-    const userContent = [{ type: 'text', text: buildUserPrompt(ts, browserResult) }];
 
-    // Attach baseline, current, and diff images when available
-    // Previous browser acts as baseline for diffs in this simplified logic
+    // Attach the current screenshot (always available) and diff if it exists
     const currentPath = path.join(screenshotsDir, `${runId}_${browserResult.browser}.png`);
     const diffPath = path.join(screenshotsDir, `${runId}_diff-${browserResult.browser}.png`);
-    const baselinePath = path.join(screenshotsDir, `${runId}_${browserResult.browser}_baseline.png`); // Unused mostly
 
-    for (const imgPath of [baselinePath, currentPath, diffPath]) {
-      const dataUrl = loadImageAsDataUrl(imgPath);
-      if (dataUrl) {
-        userContent.push({
-          type: 'image_url',
-          image_url: { url: dataUrl }
-        });
+    const hasDiff = fs.existsSync(diffPath);
+    const userContent = [{ type: 'text', text: buildUserPrompt(ts, browserResult, hasDiff) }];
+
+    // Always attach the current screenshot
+    const currentDataUrl = loadImageAsDataUrl(currentPath);
+    if (currentDataUrl) {
+      userContent.push({ type: 'image_url', image_url: { url: currentDataUrl } });
+    } else {
+      console.warn(`[AI] No screenshot found at ${currentPath}, skipping AI for ${browserResult.browser}`);
+      browserResult.aiSummary = 'Screenshot not found; AI analysis skipped.';
+      browserResult.aiIssues = [];
+      return;
+    }
+
+    // Attach the diff image if it exists (cross-browser comparison)
+    if (hasDiff) {
+      const diffDataUrl = loadImageAsDataUrl(diffPath);
+      if (diffDataUrl) {
+        userContent.push({ type: 'image_url', image_url: { url: diffDataUrl } });
       }
     }
+
+    console.log(`[AI] Sending request for ${browserResult.browser} | hasDiff=${hasDiff} | model=${OR_MODEL}`);
 
     const requestBody = {
       model: OR_MODEL,
@@ -143,11 +162,12 @@ async function analyzeBrowserDiff(runId, browserResult) {
       messages: [
         { role: 'system', content: SYSTEM_PROMPT },
         { role: 'user', content: userContent }
-      ],
-      response_format: { type: 'json_object' }
+      ]
+      // Note: response_format omitted — many free models don't support it
+      // and return an error instead of JSON. We parse with tryParseAiJson instead.
     };
 
-    // First attempt
+    // Attempt with retry
     let parsed;
     const maxAttempts = 2;
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -158,21 +178,29 @@ async function analyzeBrowserDiff(runId, browserResult) {
       });
 
       const data = await res.json();
+      console.log(`[AI] HTTP ${res.status} for ${browserResult.browser} (attempt ${attempt}), model: ${OR_MODEL}`);
 
-      // Detect API-level errors (e.g. 402 insufficient credits)
+      // Detect API-level errors (e.g. 402 insufficient credits, unsupported params)
       if (data.error) {
         const errMsg = data.error.message || JSON.stringify(data.error);
-        console.error(`OpenRouter API error (attempt ${attempt}):`, errMsg);
+        console.error(`[AI] OpenRouter API error (attempt ${attempt}):`, errMsg);
         throw new Error(`OpenRouter API error: ${errMsg}`);
       }
 
       const text = data.choices?.[0]?.message?.content || '';
+      console.log(`[AI] Raw response for ${browserResult.browser} (${text.length} chars):`, text.substring(0, 300));
+
+      if (!text) {
+        console.warn(`[AI] Empty response from model (attempt ${attempt}/${maxAttempts})`);
+        if (attempt === maxAttempts) throw new Error('Model returned empty response');
+        continue;
+      }
 
       try {
         parsed = tryParseAiJson(text);
         break; // success
       } catch (parseErr) {
-        console.warn(`AI JSON parse failed (attempt ${attempt}/${maxAttempts}):`, parseErr.message);
+        console.warn(`[AI] JSON parse failed (attempt ${attempt}/${maxAttempts}):`, parseErr.message, '| Raw:', text.substring(0, 200));
         if (attempt === maxAttempts) throw parseErr;
         // retry on next iteration
       }
@@ -181,9 +209,10 @@ async function analyzeBrowserDiff(runId, browserResult) {
     browserResult.aiSummary = parsed.summary || '';
     browserResult.aiBrowserNotes = parsed.browserNotes || '';
     browserResult.aiIssues = parsed.issues || [];
+    console.log(`[AI] Analysis complete for ${browserResult.browser}: ${browserResult.aiIssues.length} issues found`);
   } catch (err) {
-    console.error("AI Analysis failed:", err);
-    browserResult.aiSummary = 'AI Analysis failed due to an error.';
+    console.error('[AI] Analysis failed:', err.message);
+    browserResult.aiSummary = `AI Analysis failed: ${err.message}`;
     browserResult.aiBrowserNotes = '';
     browserResult.aiIssues = [];
   }
