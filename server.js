@@ -139,6 +139,7 @@ async function analyzeBrowserDiff(runId, browserResult) {
 
     const requestBody = {
       model: OR_MODEL,
+      max_tokens: 4096, // cap to stay within free-tier credit limits
       messages: [
         { role: 'system', content: SYSTEM_PROMPT },
         { role: 'user', content: userContent }
@@ -157,6 +158,14 @@ async function analyzeBrowserDiff(runId, browserResult) {
       });
 
       const data = await res.json();
+
+      // Detect API-level errors (e.g. 402 insufficient credits)
+      if (data.error) {
+        const errMsg = data.error.message || JSON.stringify(data.error);
+        console.error(`OpenRouter API error (attempt ${attempt}):`, errMsg);
+        throw new Error(`OpenRouter API error: ${errMsg}`);
+      }
+
       const text = data.choices?.[0]?.message?.content || '';
 
       try {
@@ -484,12 +493,14 @@ app.post('/api/v1/runs', async (req, res) => {
           }
         }
 
-        const verdict = maxMismatch > 5 ? 'fail' : 'pass';
+        // Compute real issue counts from AI results
+        const allAiIssues = browserResults.flatMap(br => br.aiIssues || []);
+        const totalIssues = allAiIssues.length;
+        const criticalIssues = allAiIssues.filter(i => i.severity === 'critical').length;
+
+        const verdict = (maxMismatch > 5 || criticalIssues > 0) ? 'fail' : totalIssues > 0 ? 'needs_review' : 'pass';
         const runDuration = Date.now() - startTime;
-        const summary = {
-          totalIssues: maxMismatch > 5 ? 1 : 0,
-          criticalIssues: maxMismatch > 10 ? 1 : 0
-        };
+        const summary = { totalIssues, criticalIssues };
 
         // 1. Insert browser results to DB
         for (const br of browserResults) {
@@ -557,6 +568,8 @@ app.post('/api/v1/runs', async (req, res) => {
 
         if (updateError) throw updateError;
 
+        broadcast(runId, { event: 'run:completed' });
+
       } catch (err) {
         console.error('Diffing or database saving failed:', err);
         await supabase
@@ -566,9 +579,8 @@ app.post('/api/v1/runs', async (req, res) => {
             verdict: 'fail'
           })
           .eq('id', runId);
+        broadcast(runId, { event: 'run:error', error: err.message });
       }
-
-      broadcast(runId, { event: 'run:completed' });
     });
 
     // Notify listeners that it started

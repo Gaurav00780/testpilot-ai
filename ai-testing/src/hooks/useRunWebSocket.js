@@ -79,7 +79,10 @@ const useRunWebSocket = (runId) => {
         }
 
         if (msg.event === 'run:error') {
+          completedRef.current = true;
+          queryClient.invalidateQueries({ queryKey: ['run', runId] });
           setWsState(prev => ({ ...prev, error: msg.error }));
+          ws.close();
         }
       };
 
