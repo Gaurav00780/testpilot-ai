@@ -11,8 +11,8 @@ const supabase = require('./services/supabaseClient');
 require('dotenv').config();
 
 const OPENROUTER_BASE = 'https://openrouter.ai/api/v1';
-// Default to a free vision-capable model. Override via OPENROUTER_MODEL in .env
-const OR_MODEL = process.env.OPENROUTER_MODEL || 'google/gemini-2.0-flash-exp:free';
+// Default to gpt-4o-mini (vision-capable)
+const OR_MODEL = process.env.OPENROUTER_MODEL || 'openai/gpt-4o-mini';
 
 function orHeaders() {
   return {
