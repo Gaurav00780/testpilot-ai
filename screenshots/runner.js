@@ -8,7 +8,7 @@ const runId = process.argv[4] || 'latest';
 const OUTPUT_DIR = path.join(__dirname);
 
 // Per-browser timeout: kill if a single browser takes longer than this
-const BROWSER_TIMEOUT_MS = 60000;
+const BROWSER_TIMEOUT_MS = 90000;
 
 if (!url) { console.error('Usage: node runner.js <url> [browser1,browser2,...] [runId]'); process.exit(1); }
 
@@ -40,7 +40,7 @@ async function runBrowser(browserType) {
     // Use 'load' instead of 'networkidle' — networkidle hangs on SPAs/sites
     // with analytics, ads, or persistent polling that never fully go quiet.
     // After 'load', wait up to 3s for JS-driven rendering to settle.
-    await page.goto(url, { waitUntil: 'load', timeout: 30000 });
+    await page.goto(url, { waitUntil: 'load', timeout: 60000 });
 
     // Give the page a moment to finish JS-driven rendering (capped at 3s)
     await page.waitForLoadState('domcontentloaded').catch(() => {});

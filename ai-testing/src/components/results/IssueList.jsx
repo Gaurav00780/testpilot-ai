@@ -49,6 +49,14 @@ export function IssueList({ issues = [], isLive = false, runStatus }) {
     );
   }
 
+  if (runStatus === 'error') {
+    return (
+      <div className="px-3 py-6 text-center text-red-500/80 text-xs font-mono">
+        Test runner failed. Check server logs.
+      </div>
+    );
+  }
+
   if (runStatus !== 'completed' && !issues.length) {
     return (
       <div className="px-3 py-6 text-center text-muted-foreground text-xs animate-pulse">
