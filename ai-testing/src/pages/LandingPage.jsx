@@ -545,7 +545,7 @@ function HeroSection() {
               <rect width="732" height="454" x="106" y="109" fill="#0B0B0E" rx="10" />
 
               {/* Dashboard image clipped to fit precisely */}
-              <image href="/dashboard.png" x="106" y="109" width="732" height="454" preserveAspectRatio="xMidYTop slice" clipPath="url(#dashboard-clip)" />
+              <image href="/dashboard.png" x="106" y="109" width="732" height="454" preserveAspectRatio="xMidYMin slice" clipPath="url(#dashboard-clip)" />
 
               <defs>
                 <clipPath id="dashboard-clip">
