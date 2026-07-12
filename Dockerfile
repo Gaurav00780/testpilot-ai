@@ -1,20 +1,24 @@
-# Use the official Playwright image which includes all browser dependencies
-FROM mcr.microsoft.com/playwright:jammy
+# Pin to exact Playwright version matching your package.json
+# Update this whenever you run: npm update playwright
+# Check required version with: node -e "console.log(require('playwright/package.json').version)"
+FROM mcr.microsoft.com/playwright:v1.59.1-noble
 
-# Set the working directory
 WORKDIR /app
 
-# Copy package.json and package-lock.json first to leverage Docker cache
+# Copy lockfile first — Docker cache skips npm ci if dependencies unchanged
 COPY package*.json ./
 
-# Install dependencies (this will install the exact versions from package-lock.json)
-RUN npm install
+# ci installs exact versions from lockfile, faster and deterministic
+RUN npm ci --omit=dev
 
-# Copy the rest of the application code
+# Copy application code
 COPY . .
 
-# Expose the port that the Express server runs on
+# Tell Playwright where browsers live in the official image
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+
+# Your Express server port
 EXPOSE 3001
 
-# Command to run the application
-CMD ["npm", "run", "server"]
+# Direct node invocation — no npm overhead
+CMD ["node", "server.js"]
