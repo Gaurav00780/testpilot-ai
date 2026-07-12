@@ -49,19 +49,39 @@ const useAskAi = (runId) => {
           try {
             const payload = JSON.parse(line.slice(6));
 
-            if (payload.chunk) {
-              // Append chunk to the AI message
+            // Handle "thinking" event — show NVIDIA processing status
+            if (payload.thinking) {
+              const statusText = `${payload.message || 'Analyzing with NVIDIA NIM...'} (${payload.model || 'nvidia'})`;
               setMessages(prev => prev.map(m =>
                 m.id === aiMsgId
-                  ? { ...m, content: m.content + payload.chunk }
+                  ? { ...m, content: statusText, thinking: true }
                   : m
               ));
+              continue;
+            }
+
+            if (payload.chunk) {
+              // Clear thinking status and set chunk as the AI message
+              setMessages(prev => prev.map(m =>
+                m.id === aiMsgId
+                  ? { ...m, content: m.thinking ? payload.chunk : m.content + payload.chunk, thinking: false }
+                  : m
+              ));
+            }
+
+            if (payload.error) {
+              setMessages(prev => prev.map(m =>
+                m.id === aiMsgId
+                  ? { ...m, content: `Error: ${payload.error}`, streaming: false, error: true, thinking: false }
+                  : m
+              ));
+              setIsStreaming(false);
             }
 
             if (payload.done) {
               // Mark message as complete
               setMessages(prev => prev.map(m =>
-                m.id === aiMsgId ? { ...m, streaming: false } : m
+                m.id === aiMsgId ? { ...m, streaming: false, thinking: false } : m
               ));
               setIsStreaming(false);
             }
@@ -70,16 +90,19 @@ const useAskAi = (runId) => {
       }
     } catch {
       setMessages(prev => prev.map(m =>
-        m.id === aiMsgId ? { ...m, content: m.content || 'Failed to connect to AI.', streaming: false, error: true } : m
+        m.id === aiMsgId ? { ...m, content: m.content || 'Failed to connect to AI.', streaming: false, error: true, thinking: false } : m
       ));
     } finally {
       setIsStreaming(false);
     }
   };
 
-  const clearMessages = () => setMessages([]);
+  const clearMessages = () => {
+    setMessages([]);
+  };
 
   return { messages, isStreaming, ask, clearMessages };
 };
 
 export default useAskAi;
+

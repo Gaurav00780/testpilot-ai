@@ -175,7 +175,14 @@ const useRunWebSocket = (runId) => {
       if (wsRef.current) {
         wsRef.current.onclose = null;
         wsRef.current.onerror = null;
-        wsRef.current.close();
+        if (wsRef.current.readyState === 1) { // OPEN
+          wsRef.current.close();
+        } else if (wsRef.current.readyState === 0) { // CONNECTING
+          // Wait for it to open before closing to avoid the browser console error
+          wsRef.current.onopen = () => wsRef.current.close();
+        } else {
+          wsRef.current.close();
+        }
       }
     };
   }, [runId, queryClient]);

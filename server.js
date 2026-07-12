@@ -8,117 +8,25 @@ const path = require('path');
 const fs = require('fs');
 const { compareImages } = require('./services/diffEngine');
 const supabase = require('./services/supabaseClient');
+const { analyzeScreenshots } = require('./src/nvidiaAnalyzer');
+const { callNvidia, getNvidiaStatus } = require('./src/nvidiaClient');
 require('dotenv').config();
 
-const OPENROUTER_BASE = 'https://openrouter.ai/api/v1';
-// Default to gpt-4o-mini (vision-capable)
-const OR_MODEL = process.env.OPENROUTER_MODEL || 'openai/gpt-4o-mini';
-
-function orHeaders() {
-  return {
-    'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY || ''}`,
-    'Content-Type': 'application/json',
-    'HTTP-Referer': 'http://localhost:3001',
-    'X-Title': 'TestPilot AI',
-  };
+// ─── Startup check ───────────────────────────────────────────────────────────
+if (!process.env.NVIDIA_API_KEY) {
+  console.error('[Startup] NVIDIA_API_KEY is not set — add it to .env');
+  process.exit(1);
 }
 
 function aiConfigured() {
-  return !!(process.env.OPENROUTER_API_KEY && !process.env.OPENROUTER_API_KEY.startsWith('your_'));
+  return !!process.env.NVIDIA_API_KEY;
 }
 
-const SYSTEM_PROMPT = `You are a senior front-end QA engineer specializing in cross-browser visual regression testing. You analyze screenshots (and optionally a pixel-diff overlay) to find genuine visual issues — not rendering noise.
 
-## Report as issues
-- Layout shifts, broken alignment, overlapping or clipped elements, unintended wrapping/overflow
-- Missing, misplaced, resized, or distorted images/icons/buttons
-- Color, contrast, or typography inconsistent with the rest of the page
-- Spacing/padding/margin deviations large enough to be visually obvious
-- Responsive breakage: elements squished, clipped, or overflowing the viewport
-- Z-index/stacking problems, broken hover/focus/active states visible in the screenshot
-
-## Do NOT report
-- Anti-aliasing, sub-pixel font rendering, or image compression artifacts
-- Differences confined to dynamic content: timestamps, ads, carousels, randomized data, cursor position, video frames, animation mid-frame
-- Differences under ~2px with no visible impact
-- Scrollbar/OS-chrome differences unrelated to the page itself
-
-## Severity rubric
-- "critical": page broken or unusable (content missing, layout collapsed, blocking overlap)
-- "high": clearly visible defect an end user would flag as broken
-- "medium": noticeable inconsistency; page still usable
-- "low": minor cosmetic deviation
-
-## Category (use exactly one)
-"layout" | "typography" | "color" | "spacing" | "responsive" | "content" | "overflow" | "interaction" | "other"
-
-## Confidence
-Integer 0–100. Base this on visual clarity and how obvious the issue is.
-
-## Output rules
-- Output ONLY valid JSON matching the schema you're given. No markdown fences, no preamble, no trailing commentary.
-- If you find no genuine issue, return an empty "issues" array. Never invent issues.
-- Each issue must reflect a distinct root cause — don't split one defect into several entries.
-- "suggestedFix" must be a concrete, valid CSS snippet (or a one-line note if CSS alone can't fix it).
-- Never name a selector, class, or property you can't actually see evidence for in the screenshot.`;
-
-function buildUserPrompt(ts, browserResult, hasDiff) {
-  const analysisContext = hasDiff
-    ? `You are given the screenshot for "${browserResult.browser}" and a pixel-diff overlay comparing it against another browser. Identify cross-browser rendering differences.`
-    : `You are given a single screenshot for "${browserResult.browser}". Analyze it for visual issues, layout problems, or UI defects.`;
-
-  return `${analysisContext}
-
-Return JSON matching exactly this structure:
-
-{
-  "summary": "1-2 sentence overview of findings",
-  "browserNotes": "${browserResult.browser}-specific rendering caveats (e.g. flexbox gap support, font fallback), or empty string if none",
-  "overallStatus": "pass",
-  "issues": [
-    {
-      "id": "issue_${ts}_1",
-      "browser": "${browserResult.browser}",
-      "title": "Short, specific title",
-      "severity": "critical",
-      "category": "layout",
-      "location": "Where on the page, e.g. 'header nav', 'hero CTA button'",
-      "rootCause": "What the issue is and its likely cause",
-      "suggestedFix": "Concrete CSS snippet or fix instruction",
-      "affectedProperty": "CSS property most responsible",
-      "confidence": 75
-    }
-  ]
-}
-
-Rules:
-- severity must be one of: "critical", "high", "medium", "low"
-- category must be one of: "layout", "typography", "color", "spacing", "responsive", "content", "overflow", "interaction", "other"
-- overallStatus must be one of: "pass", "needs_review", "fail"
-- Increment the numeric suffix per issue: issue_${ts}_1, issue_${ts}_2, ...
-- "issues": [] if nothing genuine is found.
-- "overallStatus": "fail" if any issue is "critical"; "needs_review" if any "high" or "medium"; "pass" otherwise.
-- Output ONLY the JSON object — no markdown, no preamble, no explanation.`;
-}
-
-function tryParseAiJson(text) {
-  // Strip markdown fences if the model wrapped the output
-  const fenceMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
-  const jsonStr = fenceMatch ? fenceMatch[1].trim() : text.trim();
-  return JSON.parse(jsonStr);
-}
-
-function loadImageAsDataUrl(filePath) {
-  if (fs.existsSync(filePath)) {
-    return `data:image/png;base64,${fs.readFileSync(filePath).toString('base64')}`;
-  }
-  return null;
-}
-
-async function analyzeBrowserDiff(runId, browserResult) {
+async function analyzeBrowserDiff(runId, browserResult, baselineBrowser) {
   try {
     if (!aiConfigured()) {
-      console.warn('AI Analysis skipped: No valid OpenRouter API key provided.');
+      console.warn('AI Analysis skipped: No valid NVIDIA_API_KEY provided.');
       browserResult.aiSummary = 'AI Analysis unavailable: No valid API key provided.';
       browserResult.aiBrowserNotes = '';
       browserResult.aiIssues = [];
@@ -128,82 +36,35 @@ async function analyzeBrowserDiff(runId, browserResult) {
     const ts = Date.now();
     const screenshotsDir = path.join(__dirname, 'screenshots');
 
-    // Attach the current screenshot (always available) and diff if it exists
     const currentPath = path.join(screenshotsDir, `${runId}_${browserResult.browser}.png`);
     const diffPath = path.join(screenshotsDir, `${runId}_diff-${browserResult.browser}.png`);
 
-    const hasDiff = fs.existsSync(diffPath);
-    const userContent = [{ type: 'text', text: buildUserPrompt(ts, browserResult, hasDiff) }];
+    // Use the first browser's screenshot as baseline for comparison
+    const baselinePath = baselineBrowser
+      ? path.join(screenshotsDir, `${runId}_${baselineBrowser}.png`)
+      : null;
 
-    // Always attach the current screenshot
-    const currentDataUrl = loadImageAsDataUrl(currentPath);
-    if (currentDataUrl) {
-      userContent.push({ type: 'image_url', image_url: { url: currentDataUrl } });
-    } else {
+    if (!fs.existsSync(currentPath)) {
       console.warn(`[AI] No screenshot found at ${currentPath}, skipping AI for ${browserResult.browser}`);
       browserResult.aiSummary = 'Screenshot not found; AI analysis skipped.';
       browserResult.aiIssues = [];
       return;
     }
 
-    // Attach the diff image if it exists (cross-browser comparison)
-    if (hasDiff) {
-      const diffDataUrl = loadImageAsDataUrl(diffPath);
-      if (diffDataUrl) {
-        userContent.push({ type: 'image_url', image_url: { url: diffDataUrl } });
-      }
-    }
+    const hasDiff = fs.existsSync(diffPath);
+    const hasBaseline = baselinePath && fs.existsSync(baselinePath);
+    console.log(`[AI] Sending NVIDIA request for ${browserResult.browser} | hasBaseline=${hasBaseline} | hasDiff=${hasDiff}`);
 
-    console.log(`[AI] Sending request for ${browserResult.browser} | hasDiff=${hasDiff} | model=${OR_MODEL}`);
+    const parsed = await analyzeScreenshots({
+      baselinePath: hasBaseline ? baselinePath : null,
+      currentPath,
+      diffPath: hasDiff ? diffPath : null,
+      browser: browserResult.browser,
+      ts,
+    });
 
-    const requestBody = {
-      model: OR_MODEL,
-      max_tokens: 4096, // cap to stay within free-tier credit limits
-      messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: userContent }
-      ]
-      // Note: response_format omitted — many free models don't support it
-      // and return an error instead of JSON. We parse with tryParseAiJson instead.
-    };
-
-    // Attempt with retry
-    let parsed;
-    const maxAttempts = 2;
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      const res = await fetch(`${OPENROUTER_BASE}/chat/completions`, {
-        method: 'POST',
-        headers: orHeaders(),
-        body: JSON.stringify(requestBody)
-      });
-
-      const data = await res.json();
-      console.log(`[AI] HTTP ${res.status} for ${browserResult.browser} (attempt ${attempt}), model: ${OR_MODEL}`);
-
-      // Detect API-level errors (e.g. 402 insufficient credits, unsupported params)
-      if (data.error) {
-        const errMsg = data.error.message || JSON.stringify(data.error);
-        console.error(`[AI] OpenRouter API error (attempt ${attempt}):`, errMsg);
-        throw new Error(`OpenRouter API error: ${errMsg}`);
-      }
-
-      const text = data.choices?.[0]?.message?.content || '';
-      console.log(`[AI] Raw response for ${browserResult.browser} (${text.length} chars):`, text.substring(0, 300));
-
-      if (!text) {
-        console.warn(`[AI] Empty response from model (attempt ${attempt}/${maxAttempts})`);
-        if (attempt === maxAttempts) throw new Error('Model returned empty response');
-        continue;
-      }
-
-      try {
-        parsed = tryParseAiJson(text);
-        break; // success
-      } catch (parseErr) {
-        console.warn(`[AI] JSON parse failed (attempt ${attempt}/${maxAttempts}):`, parseErr.message, '| Raw:', text.substring(0, 200));
-        if (attempt === maxAttempts) throw parseErr;
-        // retry on next iteration
-      }
+    if (!parsed) {
+      throw new Error('NVIDIA returned no analysis result');
     }
 
     browserResult.aiSummary = parsed.summary || '';
@@ -545,14 +406,18 @@ app.post('/api/v1/runs', async (req, res) => {
 
         if (aiAnalysis) {
           broadcast(runId, { event: 'run:progress', stage: 'ai analysis', message: 'Analyzing differences with AI...' });
-          for (const br of browserResults) {
-            await analyzeBrowserDiff(runId, br);
-            broadcast(runId, {
-              event: 'run:ai_issues',
-              browser: br.browser,
-              issues: br.aiIssues || []
-            });
-          }
+          const baselineBrowser = activeBrowsers[0]; // first browser serves as baseline
+          await Promise.all(
+            browserResults.map(async (br) => {
+              // Pass the baseline browser so NVIDIA can compare against it
+              await analyzeBrowserDiff(runId, br, br.browser === baselineBrowser ? null : baselineBrowser);
+              broadcast(runId, {
+                event: 'run:ai_issues',
+                browser: br.browser,
+                issues: br.aiIssues || []
+              });
+            })
+          );
         }
 
         // Compute real issue counts from AI results
@@ -694,10 +559,13 @@ app.post('/api/v1/runs/:id/ask', async (req, res) => {
 
   try {
     if (!aiConfigured()) {
-      res.write(`data: ${JSON.stringify({ chunk: 'AI is not configured. Set OPENROUTER_API_KEY in .env' })}\n\n`);
+      res.write(`data: ${JSON.stringify({ chunk: 'AI is not configured. Set NVIDIA_API_KEY in .env' })}\n\n`);
       res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
       return res.end();
     }
+
+    // Tell client we're working
+    res.write(`data: ${JSON.stringify({ thinking: true, message: 'Analyzing with NVIDIA NIM...', model: 'llama-3.2-90b' })}\n\n`);
 
     let context = '';
     if (issueId) {
@@ -734,57 +602,33 @@ app.post('/api/v1/runs/:id/ask', async (req, res) => {
       }
     }
 
-    const orRes = await fetch(`${OPENROUTER_BASE}/chat/completions`, {
-      method: 'POST',
-      headers: orHeaders(),
-      body: JSON.stringify({
-        model: OR_MODEL,
-        messages: [
-          { role: 'system', content: 'You are a helpful UI testing assistant. Answer concisely.' },
-          { role: 'user', content: `${context}\n\nUser Question: ${question}`.trim() }
-        ],
-        stream: true
-      })
-    });
-
-    if (!orRes.ok) {
-      const errBody = await orRes.text();
-      console.error('OpenRouter API error:', orRes.status, errBody);
-      res.write(`data: ${JSON.stringify({ error: `OpenRouter API error: ${orRes.status}` })}\n\n`);
-      return res.end();
-    }
-
-    const reader = orRes.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop() || '';
-
-      for (const line of lines) {
-        if (!line.startsWith('data: ')) continue;
-        const payload = line.slice(6).trim();
-        if (payload === '[DONE]') continue;
-        try {
-          const parsed = JSON.parse(payload);
-          const chunk = parsed.choices?.[0]?.delta?.content || '';
-          if (chunk) res.write(`data: ${JSON.stringify({ chunk })}\n\n`);
-        } catch { /* skip malformed */ }
+    // Build OpenAI-format messages for NVIDIA
+    const messages = [
+      { role: 'system', content: 'You are a helpful UI testing assistant. Answer concisely.' },
+      {
+        role: 'user',
+        content: `${context}\n\nUser Question: ${question}`.trim()
       }
-    }
+    ];
 
+    // Use fast mode for chat Q&A (no vision needed)
+    const result = await callNvidia(messages, { mode: 'fast' });
+
+    // Send the response as a single chunk (compatible with existing frontend)
+    const responseText = typeof result === 'string' ? result : JSON.stringify(result, null, 2);
+    res.write(`data: ${JSON.stringify({ chunk: responseText })}\n\n`);
     res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
     res.end();
   } catch (err) {
-    console.error("Ask AI error:", err);
+    console.error('Ask AI error:', err);
     res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
     res.end();
   }
+});
+
+// --- NVIDIA status endpoint (for debugging) ---
+app.get('/api/v1/status', (req, res) => {
+  res.json(getNvidiaStatus());
 });
 
 app.get('/api/v1/runs/:id', async (req, res) => {

@@ -66,9 +66,12 @@ export function LiveProgressPanel({ run, wsState }) {
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-8 gap-8">
       <div className="flex flex-col items-center gap-4">
-        <div className="flex items-center gap-3 text-lg font-medium text-foreground">
-          <Loader2 className="w-5 h-5 animate-spin text-accent" />
-          {isQueued ? 'Queued...' : isPolling ? 'AI analysis in progress...' : 'Running cross-browser tests...'}
+        <div className="flex flex-col items-center gap-1">
+          <div className="flex items-center gap-3 text-lg font-medium text-foreground">
+            <Loader2 className="w-5 h-5 animate-spin text-accent" />
+            {isQueued ? 'Queued...' : isPolling ? 'AI analysis in progress...' : 'Running cross-browser tests...'}
+          </div>
+          <p className="text-xs text-muted-foreground">This may take a while</p>
         </div>
 
         <div className="w-96 flex flex-col gap-2">
