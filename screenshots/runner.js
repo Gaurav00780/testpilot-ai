@@ -7,8 +7,13 @@ const browserList = process.argv[3] ? process.argv[3].split(',') : ['chromium'];
 const runId = process.argv[4] || 'latest';
 const OUTPUT_DIR = path.join(__dirname);
 
-// Per-browser timeout: kill if a single browser takes longer than this
-const BROWSER_TIMEOUT_MS = 90000;
+// Memory logger
+function logMemory(label) {
+  try {
+    const mem = process.memoryUsage();
+    console.log(`[Memory] ${label}: RSS=${Math.round(mem.rss/1024/1024)}MB, Heap=${Math.round(mem.heapUsed/1024/1024)}MB`);
+  } catch {}
+}
 
 if (!url) { console.error('Usage: node runner.js <url> [browser1,browser2,...] [runId]'); process.exit(1); }
 
@@ -21,11 +26,32 @@ async function runBrowser(browserType) {
   const isMobile = browserType.toLowerCase() === 'mobile-chrome';
   console.log(isMobile ? `Running mobile on ${browserType}` : `Running on ${browserType}`);
 
-  const browserArgs = browserType.toLowerCase() === 'chromium' || browserType.toLowerCase() === 'mobile-chrome'
-    ? ['--disable-dev-shm-usage', '--no-sandbox', '--disable-setuid-sandbox']
-    : [];
+  // Log memory before launching
+  logMemory(`before ${browserType.toLowerCase()} launch`);
 
-  const browser = await launcher.launch({ headless: true, args: browserArgs });
+  const type = browserType.toLowerCase();
+  const launchOptions = { headless: true };
+
+  if (type === 'chromium' || type === 'mobile-chrome') {
+    launchOptions.args = [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage', // critical - stops using /dev/shm which is tiny on Render
+      '--disable-gpu',
+      '--no-zygote',
+      '--single-process', // biggest memory saving - runs in one process
+      '--disable-extensions',
+      '--disable-background-networking',
+      '--memory-pressure-off'
+    ];
+  } else if (type === 'firefox') {
+    launchOptions.firefoxUserPrefs = {
+      'browser.tabs.remote.autostart': false,
+      'browser.tabs.remote.autostart.2': false,
+    };
+  }
+
+  const browser = await launcher.launch(launchOptions);
   try {
     const contextOptions = isMobile
       ? { ...devices['Pixel 5'] }
@@ -57,14 +83,34 @@ async function runBrowser(browserType) {
 (async () => {
   let anyError = false;
   for (const browserType of browserList) {
-    try {
-      // Wrap each browser run in a hard timeout
+    const isFirefox = browserType.toLowerCase() === 'firefox';
+    const timeoutMs = isFirefox ? 120000 : 90000;
+
+    const executeWithTimeout = async () => {
       await Promise.race([
         runBrowser(browserType),
         new Promise((_, reject) =>
-          setTimeout(() => reject(new Error(`Browser "${browserType}" timed out after ${BROWSER_TIMEOUT_MS / 1000}s`)), BROWSER_TIMEOUT_MS)
+          setTimeout(() => reject(new Error(`Browser "${browserType}" timed out after ${timeoutMs / 1000}s`)), timeoutMs)
         ),
       ]);
+    };
+
+    try {
+      if (isFirefox) {
+        try {
+          await executeWithTimeout();
+        } catch (err) {
+          if (err.message.includes('timed out')) {
+            console.warn('[Runner] Firefox timed out, retrying once...');
+            await new Promise(r => setTimeout(r, 3000)); // 3s cooldown
+            await executeWithTimeout();
+          } else {
+            throw err;
+          }
+        }
+      } else {
+        await executeWithTimeout();
+      }
     } catch (err) {
       console.error(`Runner error for ${browserType}:`, err.message);
       anyError = true;
