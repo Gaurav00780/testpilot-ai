@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Separator } from '../components/ui/separator';
 import { Loader2, ChevronRight } from 'lucide-react';
 
-const BROWSERS = ['chromium', 'firefox', 'webkit', 'mobile-chrome'];
+const BROWSERS = ['chromium', 'webkit', 'mobile-chrome'];
 const VIEWPORTS = [
   { label: 'Desktop 1440px', value: { width: 1440, height: 900 } },
   { label: 'Laptop 1280px', value: { width: 1280, height: 800 } },
@@ -31,7 +31,7 @@ export default function NewRun() {
   const { mutateAsync: createRun, isPending } = useCreateRun();
 
   const [url, setUrl] = useState('');
-  const [browsers, setBrowsers] = useState(['chromium', 'firefox', 'webkit', 'mobile-chrome']);
+  const [browsers, setBrowsers] = useState(['chromium', 'webkit', 'mobile-chrome']);
   const [viewport, setViewport] = useState(VIEWPORTS[0].value);
   const [waitStrategy, setWait] = useState('networkidle');
   const [threshold, setThreshold] = useState(0.1);

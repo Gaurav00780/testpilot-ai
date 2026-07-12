@@ -3,7 +3,7 @@ const path = require('path');
 const fs = require('fs');
 
 const url = process.argv[2];
-const browserList = process.argv[3] ? process.argv[3].split(',') : ['chromium'];
+const browserList = process.argv[3] ? process.argv[3].split(',') : ['chromium', 'webkit'];
 const runId = process.argv[4] || 'latest';
 const OUTPUT_DIR = path.join(__dirname);
 
@@ -44,11 +44,10 @@ async function runBrowser(browserType) {
       '--disable-background-networking',
       '--memory-pressure-off'
     ];
-  } else if (type === 'firefox') {
-    launchOptions.firefoxUserPrefs = {
-      'browser.tabs.remote.autostart': false,
-      'browser.tabs.remote.autostart.2': false,
-    };
+  } else if (type === 'webkit') {
+    // WebKit is lightweight, no special args needed on Render
+    // but set a reasonable timeout
+    launchOptions.timeout = 30000;
   }
 
   const browser = await launcher.launch(launchOptions);
@@ -81,36 +80,17 @@ async function runBrowser(browserType) {
 }
 
 (async () => {
+  console.log('[Runner] Browser targets:', browserList.join(', '));
   let anyError = false;
   for (const browserType of browserList) {
-    const isFirefox = browserType.toLowerCase() === 'firefox';
-    const timeoutMs = isFirefox ? 120000 : 90000;
-
-    const executeWithTimeout = async () => {
+    const timeoutMs = 90000;
+    try {
       await Promise.race([
         runBrowser(browserType),
         new Promise((_, reject) =>
           setTimeout(() => reject(new Error(`Browser "${browserType}" timed out after ${timeoutMs / 1000}s`)), timeoutMs)
         ),
       ]);
-    };
-
-    try {
-      if (isFirefox) {
-        try {
-          await executeWithTimeout();
-        } catch (err) {
-          if (err.message.includes('timed out')) {
-            console.warn('[Runner] Firefox timed out, retrying once...');
-            await new Promise(r => setTimeout(r, 3000)); // 3s cooldown
-            await executeWithTimeout();
-          } else {
-            throw err;
-          }
-        }
-      } else {
-        await executeWithTimeout();
-      }
     } catch (err) {
       console.error(`Runner error for ${browserType}:`, err.message);
       anyError = true;

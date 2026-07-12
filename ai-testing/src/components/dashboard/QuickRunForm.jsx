@@ -7,7 +7,7 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Play, Loader2 } from 'lucide-react';
 
-const BROWSERS = ['chromium', 'firefox', 'webkit', 'mobile-chrome'];
+const BROWSERS = ['chromium', 'webkit', 'mobile-chrome'];
 
 export function QuickRunForm() {
   const navigate = useNavigate();
@@ -15,7 +15,7 @@ export function QuickRunForm() {
   const { mutateAsync: createRun, isPending } = useCreateRun();
 
   const [url, setUrl]       = useState('');
-  const [browsers, setBrowsers] = useState(['chromium', 'firefox']);
+  const [browsers, setBrowsers] = useState(['chromium', 'webkit']);
   const [error, setError]   = useState('');
 
   const toggleBrowser = (b) => {

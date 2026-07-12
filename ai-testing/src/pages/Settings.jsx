@@ -17,7 +17,7 @@ import {
   Plus, Trash2, Globe, Smartphone
 } from 'lucide-react';
 
-const BROWSER_OPTIONS = ['chromium', 'firefox', 'webkit', 'mobile-chrome'];
+const BROWSER_OPTIONS = ['chromium', 'webkit', 'mobile-chrome'];
 
 export default function Settings() {
   const { user, setUser } = useAppStore();
@@ -31,7 +31,7 @@ export default function Settings() {
     criticalIssues: true,
     productUpdates: false,
   });
-  const [defaultBrowsers, setDefaultBrowsers] = useState(['chromium', 'firefox']);
+  const [defaultBrowsers, setDefaultBrowsers] = useState(['chromium', 'webkit']);
   const [defaultViewport, setDefaultViewport] = useState('1440x900');
   const [showKey, setShowKey] = useState({});
   const [saving, setSaving] = useState({});
