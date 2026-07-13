@@ -1,10 +1,17 @@
-node_modules
-.env
-.env.local
-screenshots
+# Ignore image files anywhere in the project
 *.png
 *.jpg
 *.jpeg
+*.gif
+*.webp
+
+# Ignore specific screenshot output files but NOT the screenshots directory itself
+# screenshots/  ← REMOVE THIS LINE if you have it
+
+# Everything else
+node_modules
+.env
+.env.local
 repomix-output*
 .git
 .gitignore
