@@ -273,8 +273,10 @@ app.post('/api/v1/runs', async (req, res) => {
       return res.status(400).json({ error: 'URL is required' });
     }
 
-    const runId = 'run_' + crypto.randomUUID();
     const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const runId = 'run_' + crypto.randomUUID();
     const aiAnalysis = req.body.aiAnalysis === true;
     const activeBrowsers = browsers || ['chromium'];
 
@@ -319,6 +321,11 @@ app.post('/api/v1/runs', async (req, res) => {
         if (!line.trim()) continue;
         console.log(`[runner ${runId}] ${line}`);
         
+        // Skip broadcasting memory or runner logs to the frontend
+        if (line.includes('[Memory]') || line.includes('[Runner]')) {
+          continue;
+        }
+
         let browser = undefined;
         const browserMatch = line.match(/Running on (chromium|firefox|webkit|mobile-chrome)/i) || line.match(/Running mobile on (chromium|firefox|webkit|mobile-chrome)/i);
         if (browserMatch) {
@@ -526,9 +533,13 @@ app.get('/api/v1/runs', async (req, res) => {
     const l = parseInt(limit, 10) || 20;
     const start = (p - 1) * l;
 
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
     let query = supabase
       .from('runs')
-      .select('*', { count: 'exact' });
+      .select('*', { count: 'exact' })
+      .eq('user_id', userId);
 
     if (filter === 'passed') query = query.eq('verdict', 'pass');
     else if (filter === 'failed') query = query.eq('verdict', 'fail');
@@ -558,6 +569,25 @@ app.post('/api/v1/runs/:id/ask', async (req, res) => {
   res.setHeader('Connection', 'keep-alive');
 
   try {
+    const userId = getUserId(req);
+    if (!userId) {
+      res.write(`data: ${JSON.stringify({ error: 'Unauthorized' })}\n\n`);
+      return res.end();
+    }
+
+    // Verify run ownership
+    const { data: runCheck, error: runCheckErr } = await supabase
+      .from('runs')
+      .select('user_id')
+      .eq('id', id)
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (runCheckErr || !runCheck) {
+      res.write(`data: ${JSON.stringify({ error: 'Run not found or unauthorized' })}\n\n`);
+      return res.end();
+    }
+
     if (!aiConfigured()) {
       res.write(`data: ${JSON.stringify({ chunk: 'AI is not configured. Set NVIDIA_API_KEY in .env' })}\n\n`);
       res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
@@ -634,11 +664,14 @@ app.get('/api/v1/status', (req, res) => {
 app.get('/api/v1/runs/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
     const { data: run, error: runError } = await supabase
       .from('runs')
       .select('*')
       .eq('id', id)
+      .eq('user_id', userId)
       .maybeSingle();
 
     if (runError) throw runError;
@@ -697,6 +730,20 @@ app.get('/api/v1/runs/:id', async (req, res) => {
 app.delete('/api/v1/runs/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    // Verify ownership
+    const { data: runCheck, error: runCheckErr } = await supabase
+      .from('runs')
+      .select('id')
+      .eq('id', id)
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (runCheckErr) throw runCheckErr;
+    if (!runCheck) return res.status(404).json({ error: 'Run not found or unauthorized' });
+
     const { error } = await supabase
       .from('runs')
       .delete()
@@ -713,9 +760,13 @@ app.delete('/api/v1/runs/:id', async (req, res) => {
 // --- Baselines endpoints ---
 app.get('/api/v1/baselines', async (req, res) => {
   try {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
     const { data: baselines, error } = await supabase
       .from('baselines')
-      .select('*')
+      .select('*, runs!inner(user_id)')
+      .eq('runs.user_id', userId)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -738,9 +789,23 @@ app.get('/api/v1/baselines', async (req, res) => {
 app.post('/api/v1/baselines', async (req, res) => {
   try {
     const { runId, url, branch } = req.body;
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
     if (!url) {
       return res.status(400).json({ error: 'URL is required' });
     }
+
+    // Verify run ownership
+    const { data: runCheck, error: runCheckErr } = await supabase
+      .from('runs')
+      .select('user_id')
+      .eq('id', runId)
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (runCheckErr) throw runCheckErr;
+    if (!runCheck) return res.status(403).json({ error: 'Unauthorized run reference' });
 
     const { data: baseline, error } = await supabase
       .from('baselines')
@@ -806,7 +871,7 @@ app.post('/api/v1/settings/api-keys', async (req, res) => {
     const { name } = req.body;
     if (!name) return res.status(400).json({ error: 'Name is required' });
 
-    const newKey = `tp_live_${uuidv4().replace(/-/g, '').substring(0, 24)}`;
+    const newKey = `tp_live_${crypto.randomUUID().replace(/-/g, '').substring(0, 24)}`;
 
     const { data: keyRecord, error } = await supabase
       .from('api_keys')
@@ -905,22 +970,28 @@ app.get('/api/v1/settings/team', async (req, res) => {
 
 app.get('/api/v1/insights', async (req, res) => {
   try {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
     const { count: totalIssues, error: countErr } = await supabase
       .from('ai_issues')
-      .select('*', { count: 'exact', head: true });
+      .select('*, runs!inner(user_id)', { count: 'exact', head: true })
+      .eq('runs.user_id', userId);
 
     if (countErr) throw countErr;
 
     const { count: criticalIssues, error: critErr } = await supabase
       .from('ai_issues')
-      .select('*', { count: 'exact', head: true })
+      .select('*, runs!inner(user_id)', { count: 'exact', head: true })
+      .eq('runs.user_id', userId)
       .eq('severity', 'critical');
 
     if (critErr) throw critErr;
 
     const { data: confData, error: confErr } = await supabase
       .from('ai_issues')
-      .select('confidence');
+      .select('confidence, runs!inner(user_id)')
+      .eq('runs.user_id', userId);
 
     if (confErr) throw confErr;
 
@@ -929,14 +1000,16 @@ app.get('/api/v1/insights', async (req, res) => {
 
     const { count: baselineCount, error: baseErr } = await supabase
       .from('baselines')
-      .select('*', { count: 'exact', head: true });
+      .select('*, runs!inner(user_id)', { count: 'exact', head: true })
+      .eq('runs.user_id', userId);
 
     if (baseErr) throw baseErr;
     const suggestionsApplied = (baselineCount || 0) * 3;
 
     const { data: issues, error: issuesErr } = await supabase
       .from('ai_issues')
-      .select('category');
+      .select('category, runs!inner(user_id)')
+      .eq('runs.user_id', userId);
 
     if (issuesErr) throw issuesErr;
 
@@ -962,7 +1035,8 @@ app.get('/api/v1/insights', async (req, res) => {
 
     const { data: topIssuesDb, error: topErr } = await supabase
       .from('ai_issues')
-      .select('*')
+      .select('*, runs!inner(user_id)')
+      .eq('runs.user_id', userId)
       .order('confidence', { ascending: false })
       .limit(6);
 
@@ -982,6 +1056,7 @@ app.get('/api/v1/insights', async (req, res) => {
       .from('runs')
       .select('*')
       .eq('ai_analysis', true)
+      .eq('user_id', userId)
       .order('created_at', { ascending: false })
       .limit(5);
 
@@ -1006,7 +1081,8 @@ app.get('/api/v1/insights', async (req, res) => {
 
       const { count: issueDayCount, error: trendErr } = await supabase
         .from('ai_issues')
-        .select('*', { count: 'exact', head: true })
+        .select('*, runs!inner(user_id)', { count: 'exact', head: true })
+        .eq('runs.user_id', userId)
         .gte('created_at', `${dateString}T00:00:00Z`)
         .lte('created_at', `${dateString}T23:59:59Z`);
 
