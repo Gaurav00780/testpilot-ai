@@ -245,18 +245,7 @@ app.post('/api/v1/auth/login', async (req, res) => {
     if (findError) throw findError;
 
     if (!user) {
-      const newUser = {
-        email,
-        name: email.split('@')[0]
-      };
-      const { data: insertedUser, error: insertError } = await supabase
-        .from('users')
-        .insert(newUser)
-        .select()
-        .single();
-      
-      if (insertError) throw insertError;
-      user = insertedUser;
+      return res.status(401).json({ error: 'User does not exist. Please create an account first.' });
     }
 
     res.json({ token: `dev-token-${user.id}`, user });

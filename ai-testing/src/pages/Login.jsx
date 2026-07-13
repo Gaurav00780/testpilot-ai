@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../utils/api';
 import useAppStore from '../store/useAppStore';
@@ -10,7 +10,7 @@ import { Loader2 } from 'lucide-react';
 
 export default function Login() {
   const navigate = useNavigate();
-  const { setUser } = useAppStore();
+  const { setUser, clearUser } = useAppStore();
 
   const [email, setEmail]     = useState('');
   const [name, setName]       = useState('');
@@ -18,12 +18,10 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState('');
 
-  const loginLocally = (emailVal, nameVal) => {
-    const user = { email: emailVal, name: nameVal || emailVal.split('@')[0] };
-    localStorage.setItem('token', 'dev-bypass-token');
-    setUser(user);
-    navigate('/dashboard');
-  };
+  useEffect(() => {
+    localStorage.removeItem('token');
+    clearUser();
+  }, [clearUser]);
 
   const handleAction = async (action) => {
     if (!email.trim()) { setError('Email is required'); return; }
@@ -38,8 +36,8 @@ export default function Login() {
       if (token) localStorage.setItem('token', token);
       setUser(user || { email, name });
       navigate('/dashboard');
-    } catch {
-      loginLocally(email, name);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Authentication failed. Please try again.');
     } finally {
       setLoading(false);
     }
