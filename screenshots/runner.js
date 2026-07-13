@@ -29,10 +29,10 @@ async function runBrowser(browserType) {
   // Log memory before launching
   logMemory(`before ${browserType.toLowerCase()} launch`);
 
-  const type = browserType.toLowerCase();
-  const launchOptions = { headless: true };
+  const browserName = browserType.toLowerCase();
+  let launchOptions = { headless: true };
 
-  if (type === 'chromium' || type === 'mobile-chrome') {
+  if (browserName === 'chromium' || browserName === 'mobile-chrome') {
     launchOptions.args = [
       '--no-sandbox',
       '--disable-setuid-sandbox',
@@ -44,10 +44,16 @@ async function runBrowser(browserType) {
       '--disable-background-networking',
       '--memory-pressure-off'
     ];
-  } else if (type === 'webkit') {
-    // WebKit is lightweight, no special args needed on Render
-    // but set a reasonable timeout
-    launchOptions.timeout = 30000;
+  } else if (browserName === 'webkit') {
+    launchOptions = {
+      timeout: 60000,  // 60s launch timeout
+      env: {
+        ...process.env,
+        // Disable WebKit GPU compositor on headless Linux
+        WEBKIT_DISABLE_COMPOSITING_MODE: '1',
+        WEBKIT_DISABLE_DMABUF_RENDERER: '1',
+      }
+    };
   }
 
   const browser = await launcher.launch(launchOptions);
@@ -62,18 +68,31 @@ async function runBrowser(browserType) {
     // Set a default timeout for all page actions
     page.setDefaultTimeout(30000);
 
-    // Use 'load' instead of 'networkidle' — networkidle hangs on SPAs/sites
-    // with analytics, ads, or persistent polling that never fully go quiet.
-    // After 'load', wait up to 3s for JS-driven rendering to settle.
-    await page.goto(url, { waitUntil: 'load', timeout: 60000 });
+    const waitUntil = browserName === 'webkit' ? 'domcontentloaded' : 'networkidle';
+    const screenshotTimeout = browserName === 'webkit' ? 90000 : 30000;
+
+    console.log(`[Runner] ${browserName} goto options: waitUntil=${waitUntil}, screenshotTimeout=${screenshotTimeout}ms`);
+
+    await page.goto(url, {
+      waitUntil: browserName === 'webkit' ? 'domcontentloaded' : 'networkidle',
+      timeout: 60000
+    });
+
+    if (browserName === 'webkit') {
+      await page.waitForTimeout(2000); // let compositor settle
+    }
 
     // Give the page a moment to finish JS-driven rendering (capped at 3s)
     await page.waitForLoadState('domcontentloaded').catch(() => {});
     await new Promise(resolve => setTimeout(resolve, 2000));
 
-    const outputPath = path.join(OUTPUT_DIR, `${runId}_${browserType.toLowerCase()}.png`);
-    await page.screenshot({ path: outputPath, fullPage: true });
-    console.log(`Screenshot saved: ${runId}_${browserType.toLowerCase()}.png`);
+    const screenshotPath = path.join(OUTPUT_DIR, `${runId}_${browserName}.png`);
+    await page.screenshot({
+      path: screenshotPath,
+      fullPage: true,
+      timeout: browserName === 'webkit' ? 90000 : 30000
+    });
+    console.log(`Screenshot saved: ${runId}_${browserName}.png`);
   } finally {
     await browser.close();
   }
