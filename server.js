@@ -136,17 +136,21 @@ const wss = new WebSocketServer({ server, path: '/ws' });
 
 const allowedOrigins = [
   'https://testpilot-ai-rose.vercel.app',
+  'https://testpilot.gauravvv.me',
   'http://localhost:5173',
   'http://localhost:3000'
 ];
 
+// Also allow any Vercel preview/production subdomain and custom origin via env
+const VERCEL_PATTERN = /^https:\/\/[\w-]+\.vercel\.app$/;
+
 app.use(cors({
   origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
+    if (!origin) return callback(null, true); // allow non-browser clients (e.g. curl, Postman)
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    if (VERCEL_PATTERN.test(origin)) return callback(null, true);
+    if (process.env.CORS_ORIGIN && origin === process.env.CORS_ORIGIN) return callback(null, true);
+    callback(new Error('Not allowed by CORS'));
   },
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
