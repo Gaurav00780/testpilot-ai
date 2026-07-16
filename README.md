@@ -122,6 +122,8 @@ Distinguishes quota exhaustion (fails fast) from transient rate limits (exponent
 │         runs · screenshots · issues             │
 └─────────────────────────────────────────────────┘
 ```
+<img width="1621" height="911" alt="Screenshot 2026-07-16 194733" src="https://github.com/user-attachments/assets/e45390cd-985f-42aa-9f3b-b5b80c45796f" />
+<img width="1620" height="911" alt="Screenshot 2026-07-16 195137" src="https://github.com/user-attachments/assets/c64cbb74-e006-4aca-8742-d8317425dc9a" />
 
 ---
 
@@ -329,8 +331,8 @@ Both return HTTP 429 but behave differently. Quota exhaustion (`limit: 0` in err
 **Gaurav** — Full Stack Developer & QA Automation Engineer
 
 [![Portfolio](https://img.shields.io/badge/Portfolio-gauravvv.me-6366f1?style=flat-square)](https://gauravvv.me)
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-0077B5?style=flat-square&logo=linkedin)](https://linkedin.com/in/your-handle)
-[![GitHub](https://img.shields.io/badge/GitHub-Follow-181717?style=flat-square&logo=github)](https://github.com/yourusername)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-0077B5?style=flat-square&logo=linkedin)](https://linkedin.com/in/gauravsuthar7)
+[![GitHub](https://img.shields.io/badge/GitHub-Follow-181717?style=flat-square&logo=github)](https://github.com/Gaurav00780)
 
 ---
 
